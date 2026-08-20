@@ -65,7 +65,8 @@ enum m_state_e {
 	m_controller,
 	m_campaign,
 	m_language,
-	m_autoaim
+	m_autoaim,
+	m_modal
 };
 
 extern enum m_state_e m_state;
@@ -91,6 +92,7 @@ void MQC_Shutdown(void);
 void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
 void M_Menu_Quit_f (void);
+void M_Menu_CustomModal_f (void);
 
 void M_Print(int cx, int cy, const char* str);
 void M_PrintColor (int cx, int cy, const char *str); //avião

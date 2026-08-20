@@ -3771,9 +3771,6 @@ qboolean WordFilter_Check(const char* text, char* dest_buffer, size_t buffer_siz
 CL_ParseServerMessage
 =====================
 */
-qboolean scr_drawcustommodal;
-
-int m_modal_cursor;
 char modal_message[MAX_PATH];
 char modal_yes[MAX_PATH];
 char modal_no[MAX_PATH];

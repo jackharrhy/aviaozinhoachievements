@@ -4259,80 +4259,6 @@ void SCR_DrawNotifyString(void) // woods add ^m support
 	}
 }
 
-// avião: custom modal
-extern qboolean scr_drawcustommodal;
-extern int m_modal_cursor;
-extern char modal_message[MAX_PATH];
-extern char modal_yes[MAX_PATH];
-extern char modal_no[MAX_PATH];
-
-void SCR_DrawCustomModal(void) // woods add ^m support
-{
-	GL_SetCanvas(CANVAS_MENU); //johnfitz
-
-	M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-
-	const double scale = 1.5;
-	const double invScale = 1.0 / scale;
-	glPushMatrix();
-	glScalef(scale, scale, scale);
-
-	int x = 72;
-	int y = 32;
-
-	M_Print(x * invScale, y * invScale, LOC_GetString(modal_message)); y += 20;
-	M_Print(x * invScale, y * invScale, LOC_GetString(modal_yes)); y += 20;
-	M_Print(x * invScale, y * invScale, LOC_GetString(modal_no)); y += 20;
-
-	glPopMatrix();
-
-	int cursor, f;
-	f = (int)(realtime * 10) % 6;
-	cursor = m_modal_cursor;
-	M_DrawTransPic(44, 44 + cursor * 20, Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
-}
-
-int SCR_CustomModalMsg()
-{
-	int lastkey, lastchar;
-	if (cls.state == ca_dedicated) {
-		return true;
-	}
-	S_ClearBuffer();		// so dma doesn't loop current sound
-	int result = -1;
-	do
-	{
-		realtime = Sys_DoubleTime();
-		Key_BeginInputGrab();
-		Sys_SendKeyEvents();
-		Key_GetGrabbedInput(&lastkey, &lastchar);
-		Key_EndInputGrab();
-		switch (lastkey)
-		{
-		case K_DOWNARROW:
-			S_LocalSound("misc/menu1.wav");
-			if (m_modal_cursor++ >= 1)
-				m_modal_cursor = 0;
-			break;
-		case K_UPARROW:
-			S_LocalSound("misc/menu1.wav");
-			if (--m_modal_cursor < 0)
-				m_modal_cursor = 1;
-			break;
-		case K_ENTER:
-		case K_KP_ENTER:
-		case K_ABUTTON:
-			result = m_modal_cursor;
-			break;
-		}
-		scr_drawcustommodal = true;
-		SCR_UpdateScreen();
-		scr_drawcustommodal = false;
-		Sys_Sleep(16);
-	} while (result == -1);
-	return result;
-}
-
 //avião: custom autoload
 qboolean scr_drawautoload;
 
@@ -4668,13 +4594,6 @@ void SCR_UpdateScreen(void)
 			Draw_ConsoleBackground();
 		Draw_FadeScreen();
 		SCR_DrawAutoLoad();
-	}
-	else if (scr_drawcustommodal)  //avião: custom modal
-	{
-		if(con_forcedup)
-			Draw_ConsoleBackground();
-		Draw_FadeScreen();
-		SCR_DrawCustomModal();
 	}
 	else if (scr_drawloading) //loading
 	{

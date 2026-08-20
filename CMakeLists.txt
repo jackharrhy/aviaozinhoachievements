@@ -5,6 +5,7 @@ project(quakespasm_sdl2 C CXX)
 option(QS_COPY_RUNTIME_DLLS "Copy runtime DLLs after build" ON)
 option(QS_FLESH "Enable Flesh definition" OFF)
 option(QS_BDD_PRE_4 "Enable BDDPRE4 definition" OFF)
+option(QS_BDD4_WARNING "Enable BDD4_WARNING definition (startup alert message)" OFF)
 
 set(QS_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Build" CACHE PATH "Directory for the final executable")
 
@@ -246,6 +247,12 @@ target_compile_definitions(quakespasm PRIVATE
 if(QS_BDD_PRE_4)
     target_compile_definitions(quakespasm PRIVATE
         BDDPRE4
+    )
+endif()
+
+if(QS_BDD4_WARNING)
+    target_compile_definitions(quakespasm PRIVATE
+        BDD4_WARNING
     )
 endif()
 

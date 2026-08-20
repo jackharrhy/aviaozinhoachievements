@@ -2522,36 +2522,12 @@ char* GetLastSavedFile(char* output, size_t output_size) {
 }
 
 //avião: custom modal
-qboolean SCR_CustomModalMessage()
-{
-	int lastkey, lastchar;
-	if (cls.state == ca_dedicated)
-		return true;
-	SCR_UpdateScreen();
-	S_ClearBuffer();
-	Key_BeginInputGrab();
-	do
-	{
-		Sys_SendKeyEvents();
-		Key_GetGrabbedInput(&lastkey, &lastchar);
-		Sys_Sleep(16);
-	} while (lastkey != K_ABUTTON);
-	Key_EndInputGrab();
-	return true;
-}
-
-extern int m_modal_cursor;
-
 void Host_CustomModal(void)
 {
-again:
-	int result = SCR_CustomModalMsg();
-	if (!SCR_CustomModalMessage()) {
-		goto again;
-	}
-	int impulse = m_modal_cursor == 0 ? 51 : 52;
-	Cbuf_AddText(va("impulse %i\n", impulse));
-	return;
+	if (cls.state == ca_dedicated || cls.demoplayback)
+		return;
+
+	M_Menu_CustomModal_f();
 }
 
 /*

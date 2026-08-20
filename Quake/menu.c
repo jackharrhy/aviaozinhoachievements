@@ -280,6 +280,10 @@ void M_GameOver_Key(int key);
 void M_GameOver_Mousemove(int x, int y);
 void M_GameOver_GoBack(void);
 
+void M_Modal_Draw(void);
+void M_Modal_Key(int key);
+void M_Modal_Mousemove(int cx, int cy);
+
 // ===== Controller =====
 void M_Menu_Controller_f(void);
 void M_Controller_Draw(void);
@@ -10604,6 +10608,86 @@ void M_GameOver_GoBack(void) {
 	m_state = m_main;
 }
 
+extern char modal_message[MAX_PATH];
+extern char modal_yes[MAX_PATH];
+extern char modal_no[MAX_PATH];
+
+int m_modal_cursor;
+
+void M_Menu_CustomModal_f(void) {
+	if (!modal_message[0])
+		return;
+
+	m_modal_cursor = 0;
+	key_dest = key_menu;
+	m_state = m_modal;
+	m_entersound = true;
+	IN_UpdateGrabs();
+}
+
+static void M_Modal_Answer(int option) {
+	modal_message[0] = '\0';
+	m_modal_cursor = 0;
+	key_dest = key_game;
+	m_state = m_none;
+	IN_UpdateGrabs();
+	Cbuf_AddText(va("impulse %i\n", option == 0 ? 51 : 52));
+}
+
+void M_Modal_Key(int key)
+{
+	switch (key)
+	{
+	case K_DOWNARROW:
+		S_LocalSound("misc/menu1.wav");
+		if (++m_modal_cursor > 1)
+			m_modal_cursor = 0;
+		break;
+
+	case K_UPARROW:
+		S_LocalSound("misc/menu1.wav");
+		if (--m_modal_cursor < 0)
+			m_modal_cursor = 1;
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		S_LocalSound("misc/menu2.wav");
+		M_Modal_Answer(m_modal_cursor);
+		break;
+	}
+}
+
+void M_Modal_Draw(void) {
+	M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+
+	const double scale = 1.5;
+	const double invScale = 1.0 / scale;
+	glPushMatrix();
+	glScalef(scale, scale, scale);
+
+	int x = 72;
+	int y = 32;
+
+	M_Print(x * invScale, y * invScale, LOC_GetString(modal_message)); y += 20;
+	M_Print(x * invScale, y * invScale, LOC_GetString(modal_yes)); y += 20;
+	M_Print(x * invScale, y * invScale, LOC_GetString(modal_no)); y += 20;
+
+	glPopMatrix();
+
+	int cursor, f;
+	f = (int)(realtime * 10) % 6;
+	cursor = m_modal_cursor;
+	M_DrawTransPic(44, 44 + cursor * 20, Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
+}
+
+void M_Modal_Mousemove(int cx, int cy)
+{
+	M_UpdateCursor(cy, 52, 20, 2, &m_modal_cursor);
+}
+
 /*
 ==================
  * Campaign menu
@@ -15618,6 +15702,10 @@ void M_Draw(void)
 		M_GameOver_Draw();
 		break;
 
+	case m_modal:
+		M_Modal_Draw();
+		break;
+
 	case m_controller:
 		M_Controller_Draw();
 		return;
@@ -15803,6 +15891,10 @@ void M_Keydown(int key)
 		M_GameOver_Key(key);
 		return;
 
+	case m_modal:
+		M_Modal_Key(key);
+		return;
+
 	case m_controller:
 		M_Controller_Key(key);
 		return;
@@ -15982,6 +16074,10 @@ void M_Mousemove(int x, int y) // woods #mousemenu
 
 	case m_gameover:
 		M_GameOver_Mousemove(x, y);
+		return;
+
+	case m_modal:
+		M_Modal_Mousemove(x, y);
 		return;
 
 	case m_controller:
