@@ -2474,6 +2474,7 @@ static void Host_Randmap_f(void)
 		}
 	}
 }
+
 //avião: corrected save name
 char* GetLastSavedFile(char* output, size_t output_size) {
 	char name[MAX_OSPATH];
@@ -2520,7 +2521,38 @@ char* GetLastSavedFile(char* output, size_t output_size) {
 	return NULL;
 }
 
+//avião: custom modal
+qboolean SCR_CustomModalMessage()
+{
+	int lastkey, lastchar;
+	if (cls.state == ca_dedicated)
+		return true;
+	SCR_UpdateScreen();
+	S_ClearBuffer();
+	Key_BeginInputGrab();
+	do
+	{
+		Sys_SendKeyEvents();
+		Key_GetGrabbedInput(&lastkey, &lastchar);
+		Sys_Sleep(16);
+	} while (lastkey != K_ABUTTON);
+	Key_EndInputGrab();
+	return true;
+}
 
+extern int m_modal_cursor;
+
+void Host_CustomModal(void)
+{
+again:
+	int result = SCR_CustomModalMsg();
+	if (!SCR_CustomModalMessage()) {
+		goto again;
+	}
+	int impulse = m_modal_cursor == 0 ? 51 : 52;
+	Cbuf_AddText(va("impulse %i\n", impulse));
+	return;
+}
 
 /*
 ==================
@@ -2547,8 +2579,6 @@ static qboolean Host_AutoLoad(void)
 		case 1:
 			M_ToggleMenu(69);
 			return true;
-			//GetLastSavedFile(load, sizeof(load));
-			//break;
 		case 2:
 			return false;
 		}
@@ -2620,7 +2650,7 @@ static void Host_Changelevel_f(void)
 #ifdef BDDPRE4
 static qboolean Host_IntermissionRunning(void)
 {
-	ddef_t	*def;
+	ddef_t* def;
 
 	def = ED_FindGlobal("intermission_running");
 	if (!def || (def->type & ~DEF_SAVEGLOBAL) != ev_float || def->ofs >= qcvm->progs->numglobals)
@@ -2629,7 +2659,7 @@ static qboolean Host_IntermissionRunning(void)
 		return false;
 	}
 
-	return ((eval_t *)(qcvm->globals + def->ofs))->_float != 0;
+	return ((eval_t*)(qcvm->globals + def->ofs))->_float != 0;
 }
 
 static void Host_FinaleRestart_f(void)

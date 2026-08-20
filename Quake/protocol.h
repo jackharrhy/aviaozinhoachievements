@@ -356,6 +356,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svcfte_voicechat			84
 #define svcfte_setangledelta		85
 #define svcfte_updateentities		86
+
+// avião
+#define svc_modal					87
 //spike -- end
 
 // JPG - added ProQuake commands woods #pqteam

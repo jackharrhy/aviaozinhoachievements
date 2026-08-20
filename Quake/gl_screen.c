@@ -4156,13 +4156,37 @@ const char* scr_notifystring;
 qboolean	scr_drawdialog;
 
 
+static int SCR_NotifyLineChars(const char* str, size_t bytes)
+{
+	size_t i = 0;
+	int count = 0;
+
+	while (i < bytes)
+	{
+		unsigned char c = (unsigned char)str[i];
+
+		if (c < 0x80)
+			i += 1;
+		else if ((c & 0xE0) == 0xC0)
+			i += 2;
+		else if ((c & 0xF0) == 0xE0)
+			i += 3;
+		else if ((c & 0xF8) == 0xF0)
+			i += 4;
+		else
+			i += 1;
+
+		count++;
+	}
+
+	return count;
+}
+
 void SCR_DrawNotifyString(void) // woods add ^m support
 {
 	const char* start;
-	int		l;
 	int		x, y;
-	int mask = 0;       // Masking state
-	int last_char = 0;  // Previous character
+	int		mask = 0;
 
 	GL_SetCanvas(CANVAS_MENU); //johnfitz
 
@@ -4172,90 +4196,141 @@ void SCR_DrawNotifyString(void) // woods add ^m support
 
 	while (*start)
 	{
-		// First pass: calculate visible length (excluding control sequences)
-		int visible_length = 0;
-		for (l = 0; l < 40; l++)
-		{
-			if (start[l] == '\n' || !start[l])
-				break;
+		size_t	linebytes = 0;
+		int		chars, visible, i;
 
-			// Skip ^m sequences when calculating length
-			if (start[l] == '^' && l + 1 < 40 && start[l + 1] == 'm')
+		while (start[linebytes] && start[linebytes] != '\n')
+			linebytes++;
+
+		chars = SCR_NotifyLineChars(start, linebytes);
+		if (chars > 40)
+			chars = 40;
+
+		visible = 0;
+		for (i = 0; i < chars; i++)
+		{
+			Uint32 codepoint = utf8_decode_nth(start, i, linebytes);
+
+			if (codepoint == '^')
 			{
-				l++; // Skip both ^ and m
+				if (i + 1 < chars && utf8_decode_nth(start, i + 1, linebytes) == 'm')
+					i++;
 				continue;
 			}
-			// Skip standalone ^ if it's not part of a valid sequence
-			if (start[l] == '^' && l + 1 < 40 && start[l + 1] != 'm')
-			{
-				continue;
-			}
-			visible_length++;
+
+			visible++;
 		}
 
-		// Calculate starting x position based on visible length
-		x = (320 - visible_length * 8) / 2;
+		x = (320 - visible * 8) / 2;
 
-		// Second pass: actual drawing
-		for (int j = 0; j < l;)
+		for (i = 0; i < chars; i++)
 		{
-			char c = start[j];
+			Uint32 codepoint = utf8_decode_nth(start, i, linebytes);
 
-			// Handle masking sequences
-			if (last_char == '^' && c == 'm')
+			if (codepoint == '^')
 			{
-				mask ^= 128;  // Toggle mask
-				last_char = 0;
-				j++;
+				if (i + 1 < chars && utf8_decode_nth(start, i + 1, linebytes) == 'm')
+				{
+					mask ^= 128;
+					i++;
+				}
 				continue;
 			}
 
-			if (c == '^')
-			{
-				last_char = '^';
-				j++;
-				continue;
-			}
-
-			if (last_char == '^' && c != 'm')
-			{
-				last_char = 0;
-				// Continue to draw the current character
-			}
-			else
-			{
-				last_char = 0;
-			}
-
-			// Apply mask if enabled
-			int num = c;
-			if (mask)
-				num = (num & 127) | 128;
-			else
-				num &= 127;
-
-			if (num == 32)
+			if (codepoint == ' ')
 			{
 				x += 8;
-				j++;
 				continue;
 			}
 
-			Draw_CharacterRGBA(x, y, num, CL_PLColours_Parse("0xffffff"), 1);
+			if (mask && codepoint < 128)
+				codepoint |= 128;
+
+			Draw_CharacterRGBA(x, y, codepoint, CL_PLColours_Parse("0xffffff"), 1);
 			x += 8;
-			j++;
 		}
 
 		y += 8;
 
-		start += l;
-
-		while (*start && *start != '\n')
-			start++;
+		start += linebytes;
 
 		if (*start == '\n')
 			start++;
 	}
+}
+
+// avião: custom modal
+extern qboolean scr_drawcustommodal;
+extern int m_modal_cursor;
+extern char modal_message[MAX_PATH];
+extern char modal_yes[MAX_PATH];
+extern char modal_no[MAX_PATH];
+
+void SCR_DrawCustomModal(void) // woods add ^m support
+{
+	GL_SetCanvas(CANVAS_MENU); //johnfitz
+
+	M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+
+	const double scale = 1.5;
+	const double invScale = 1.0 / scale;
+	glPushMatrix();
+	glScalef(scale, scale, scale);
+
+	int x = 72;
+	int y = 32;
+
+	M_Print(x * invScale, y * invScale, LOC_GetString(modal_message)); y += 20;
+	M_Print(x * invScale, y * invScale, LOC_GetString(modal_yes)); y += 20;
+	M_Print(x * invScale, y * invScale, LOC_GetString(modal_no)); y += 20;
+
+	glPopMatrix();
+
+	int cursor, f;
+	f = (int)(realtime * 10) % 6;
+	cursor = m_modal_cursor;
+	M_DrawTransPic(44, 44 + cursor * 20, Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
+}
+
+int SCR_CustomModalMsg()
+{
+	int lastkey, lastchar;
+	if (cls.state == ca_dedicated) {
+		return true;
+	}
+	S_ClearBuffer();		// so dma doesn't loop current sound
+	int result = -1;
+	do
+	{
+		realtime = Sys_DoubleTime();
+		Key_BeginInputGrab();
+		Sys_SendKeyEvents();
+		Key_GetGrabbedInput(&lastkey, &lastchar);
+		Key_EndInputGrab();
+		switch (lastkey)
+		{
+		case K_DOWNARROW:
+			S_LocalSound("misc/menu1.wav");
+			if (m_modal_cursor++ >= 1)
+				m_modal_cursor = 0;
+			break;
+		case K_UPARROW:
+			S_LocalSound("misc/menu1.wav");
+			if (--m_modal_cursor < 0)
+				m_modal_cursor = 1;
+			break;
+		case K_ENTER:
+		case K_KP_ENTER:
+		case K_ABUTTON:
+			result = m_modal_cursor;
+			break;
+		}
+		scr_drawcustommodal = true;
+		SCR_UpdateScreen();
+		scr_drawcustommodal = false;
+		Sys_Sleep(16);
+	} while (result == -1);
+	return result;
 }
 
 //avião: custom autoload
@@ -4290,89 +4365,6 @@ void SCR_DrawAutoLoad(void) // woods add ^m support
 	cursor = m_gameover_cursor;
 	M_DrawTransPic(44, 24 + cursor * 20, Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
 }
-
-//avião: gets input names (not used)
-const char* GetVendorSpecificButtonName(SDL_Joystick* joystick, int k_button) {
-	Uint16 vendor = SDL_JoystickGetVendor(joystick);
-	const char* name = SDL_JoystickName(joystick);
-
-	enum { VENDOR_SONY = 0x054C, VENDOR_MICROSOFT = 0x045E, VENDOR_NINTENDO = 0x057E };
-
-	int isSony = (vendor == VENDOR_SONY) || (name && strstr(name, "Sony"));
-	int isMicrosoft = (vendor == VENDOR_MICROSOFT) || (name && strstr(name, "Xbox"));
-	int isNintendo = (vendor == VENDOR_NINTENDO) || (name && strstr(name, "Nintendo"));
-
-	if (isSony) {
-		switch (k_button) {
-		case K_ABUTTON: return "Cross";
-		case K_BBUTTON: return "Circle";
-		case K_XBUTTON: return "Square";
-		case K_YBUTTON: return "Triangle";
-		case K_LSHOULDER: return "L1";
-		case K_RSHOULDER: return "R1";
-		case K_LTRIGGER: return "L2";
-		case K_RTRIGGER: return "R2";
-		case K_LTHUMB: return "L3";
-		case K_RTHUMB: return "R3";
-		case K_TAB: return "Share";
-		case K_ESCAPE: return "Options";
-		default: return "Unknown Sony Button";
-		}
-	}
-	else if (isNintendo) {
-		switch (k_button) {
-		case K_ABUTTON: return "B";
-		case K_BBUTTON: return "A";
-		case K_XBUTTON: return "Y";
-		case K_YBUTTON: return "X";
-		case K_LSHOULDER: return "L";
-		case K_RSHOULDER: return "R";
-		case K_LTRIGGER: return "ZL";
-		case K_RTRIGGER: return "ZR";
-		case K_LTHUMB: return "Left Stick";
-		case K_RTHUMB: return "Right Stick";
-		case K_TAB: return "Minus";
-		case K_ESCAPE: return "Plus";
-		default: return "Unknown Nintendo Button";
-		}
-	}
-	else if (isMicrosoft) {
-		switch (k_button) {
-		case K_ABUTTON: return "A";
-		case K_BBUTTON: return "B";
-		case K_XBUTTON: return "X";
-		case K_YBUTTON: return "Y";
-		case K_LSHOULDER: return "LB";
-		case K_RSHOULDER: return "RB";
-		case K_LTRIGGER: return "LT";
-		case K_RTRIGGER: return "RT";
-		case K_LTHUMB: return "Left Stick";
-		case K_RTHUMB: return "Right Stick";
-		case K_TAB: return "View";
-		case K_ESCAPE: return "Menu";
-		default: return "Unknown Xbox Button";
-		}
-	}
-	else {
-		switch (k_button) {
-		case K_ABUTTON: return "A";
-		case K_BBUTTON: return "B";
-		case K_XBUTTON: return "X";
-		case K_YBUTTON: return "Y";
-		case K_LSHOULDER: return "L1";
-		case K_RSHOULDER: return "R1";
-		case K_LTRIGGER: return "L2";
-		case K_RTRIGGER: return "R2";
-		case K_LTHUMB: return "Left Stick";
-		case K_RTHUMB: return "Right Stick";
-		case K_TAB: return "Back";
-		case K_ESCAPE: return "Start";
-		default: return "Unknown Button";
-		}
-	}
-}
-
-//avião: custom autoload
 
 int SCR_AutoloadMessage()
 {
@@ -4474,6 +4466,46 @@ int SCR_ModalMessage(const char* text, float timeout) //johnfitz -- timeout
 	return (lastchar == 'y' || lastchar == 'Y' || lastkey == K_ABUTTON);
 }
 
+/*
+==================
+SCR_ModalAlert
+
+Displays a text string in the center of the screen and waits for the player
+to acknowledge it
+==================
+*/
+void SCR_ModalAlert(const char* text)
+{
+	int lastkey, lastchar;
+
+	if (cls.state == ca_dedicated)
+		return;
+
+	scr_notifystring = text;
+
+	scr_drawdialog = true;
+	SCR_UpdateScreen();
+	scr_drawdialog = false;
+
+	S_ClearBuffer();
+
+	Key_BeginInputGrab();
+	do
+	{
+		Sys_SendKeyEvents();
+		Key_GetGrabbedInput(&lastkey, &lastchar);
+		Sys_Sleep(16);
+	} while (lastkey != K_ENTER &&
+		lastkey != K_KP_ENTER &&
+		lastkey != K_SPACE &&
+		lastkey != K_ESCAPE &&
+		lastkey != K_ABUTTON &&
+		lastkey != K_BBUTTON &&
+		lastkey != K_MOUSE1 &&
+		lastkey != K_MOUSE2);
+	Key_EndInputGrab();
+}
+
 
 //=============================================================================
 
@@ -4552,7 +4584,6 @@ void SCR_UpdateScreen(void)
 
 	if (!scr_initialized || !con_initialized)
 		return;				// not initialized yet
-
 
 	GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 
@@ -4637,6 +4668,13 @@ void SCR_UpdateScreen(void)
 			Draw_ConsoleBackground();
 		Draw_FadeScreen();
 		SCR_DrawAutoLoad();
+	}
+	else if (scr_drawcustommodal)  //avião: custom modal
+	{
+		if(con_forcedup)
+			Draw_ConsoleBackground();
+		Draw_FadeScreen();
+		SCR_DrawCustomModal();
 	}
 	else if (scr_drawloading) //loading
 	{

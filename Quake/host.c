@@ -1435,6 +1435,34 @@ static void CL_LoadCSProgs(void)
 	PR_SwitchQCVM(NULL);
 }
 
+static void Host_ShowStartupAlert (void)
+{
+	static qboolean shown = false;
+	const char *alert;
+	const char *ok;
+	char text[1024];
+
+	if (shown)
+		return;
+
+	shown = true;
+
+	if (cls.state == ca_dedicated || isDedicated)
+		return;
+
+	alert = LOC_GetRawString ("$alert");
+	if (!alert || !*alert)
+		return;
+
+	ok = LOC_GetRawString ("$menu_ok");
+	if (!ok || !*ok)
+		ok = "OK";
+
+	q_snprintf (text, sizeof(text), "%s\n\n[ %s ]\n", alert, ok);
+
+	SCR_ModalAlert (text);
+}
+
 /*
 ==================
 Host_Frame
@@ -1586,6 +1614,10 @@ void _Host_Frame (double time)
 		Con_Printf ("%3i tot %3i server %3i gfx %3i snd\n",
 					pass1+pass2+pass3, pass1, pass2, pass3);
 	}
+
+#ifdef BDD4_WARNING
+	Host_ShowStartupAlert ();
+#endif
 
 	host_framecount++;
 

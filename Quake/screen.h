@@ -41,6 +41,7 @@ void SCR_BeginLoadingPlaque (void);
 void SCR_EndLoadingPlaque (void);
 
 int SCR_ModalMessage (const char *text, float timeout); //johnfitz -- added timeout
+void SCR_ModalAlert (const char *text);
 
 //avi�o: custom autoload
 int SCR_AutoloadMessage();

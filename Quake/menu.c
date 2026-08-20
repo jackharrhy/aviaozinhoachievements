@@ -4461,10 +4461,10 @@ void M_Options_Draw(void)
 			}
 			break;
 		case OPT_CONSOLE:
-			text = LOC_GetString("$menu_console");
+			text = LOC_GetString("$menu_consoleitem");
 			break;
 		case OPT_LANGUAGES:
-			text = LOC_GetString("$menu_languages");
+			text = LOC_GetString("$menu_languagesitem");
 			break;
 		}
 
@@ -4528,9 +4528,9 @@ static const char* M_Options_GetItemText(int index)
 	case OPT_MENUSCALE:
 		return LOC_GetString("$menu_menuscale");
 	case OPT_CONSOLE:
-		return LOC_GetString("$menu_console");
+		return LOC_GetString("$menu_consoleitem");
 	case OPT_LANGUAGES:
-		return LOC_GetString("$menu_languages");
+		return LOC_GetString("$menu_languagesitem");
 	default:
 		return "";
 	}
@@ -10606,75 +10606,6 @@ void M_GameOver_GoBack(void) {
 
 /*
 ==================
-Campaign map list
-==================
-*/
-
-#define CAMPAIGN_EPISODE_NAME	"Main"
-
-typedef struct
-{
-	const char* name;
-	const char* description;
-} campaignmap_t;
-
-static campaignmap_t* campaignmaps = NULL;
-static json_t* campaignjson = NULL;
-static qboolean			campaignmaps_loaded = false;
-
-static void M_Campaign_LoadMaps(void)
-{
-	char* text;
-	const jsonentry_t* entry;
-
-	if (campaignmaps_loaded)
-		return;
-	campaignmaps_loaded = true;
-
-	text = (char*)COM_LoadMallocFile("campaign.json", NULL);
-	if (!text)
-		return;
-
-	campaignjson = JSON_Parse(text);
-	free(text);
-
-	if (!campaignjson || !campaignjson->root)
-	{
-		Con_Warning("Couldn't parse campaign.json\n");
-		return;
-	}
-
-	for (entry = campaignjson->root->firstchild; entry; entry = entry->next)
-	{
-		campaignmap_t map;
-		const char* name = JSON_FindString(entry, "name");
-		const char* data = JSON_FindString(entry, "data");
-
-		if (!name || !*name)
-			continue;
-
-		map.name = name;
-		map.description = (data && *data) ? data : name;
-
-		VEC_PUSH(campaignmaps, map);
-	}
-}
-
-static int M_Campaign_GetMapCount(void)
-{
-	M_Campaign_LoadMaps();
-	return (int)VEC_SIZE(campaignmaps);
-}
-
-static const campaignmap_t* M_Campaign_GetMap(int index)
-{
-	if (index < 0 || index >= M_Campaign_GetMapCount())
-		return NULL;
-	return &campaignmaps[index];
-}
-
-/*
-==================
  * Campaign menu
 ==================
 */
@@ -10725,27 +10656,9 @@ static void M_Campaign_Refilter(void)
 	M_List_CenterCursor(&campaignmenu.list);
 }
 
-static void M_Campaign_UnloadMaps(void)
-{
-	campaignmenu.mapcount = 0;
-	campaignmenu.list.numitems = 0;
-	campaignmenu.list.cursor = 0;
-	campaignmenu.list.scroll = 0;
-	VEC_CLEAR(campaignmenu.items);
-	VEC_CLEAR(campaignmenu.filtered_indices);
-
-	VEC_CLEAR(campaignmaps);
-	if (campaignjson)
-	{
-		JSON_Free(campaignjson);
-		campaignjson = NULL;
-	}
-	campaignmaps_loaded = false;
-}
-
 static void M_Campaign_Init(void)
 {
-	int i, count;
+	filelist_item_t* item;
 
 	campaignmenu.scrollbar_grab = false;
 	campaignmenu.list.viewsize = MAX_VIS_MAPS;
@@ -10761,11 +10674,21 @@ static void M_Campaign_Init(void)
 
 	M_Ticker_Init(&campaignmenu.ticker);
 
-	count = M_Campaign_GetMapCount();
-	for (i = 0; i < count; i++)
-	{
-		const campaignmap_t* map = M_Campaign_GetMap(i);
-		M_Campaign_Add(map->name, map->description);
+	const char* campaign_data = (const char*)COM_LoadMallocFile("campaign.json", NULL);
+	if (campaign_data) {
+		json_t* campaign_json = JSON_Parse(campaign_data);
+		free(campaign_data);
+		if (campaign_json == NULL) {
+			return;
+		}
+		jsonentry_t* sub_item = campaign_json->root->firstchild;
+		while (sub_item)
+		{
+			const jsonentry_t* name = JSON_Find(sub_item, "name", JSON_STRING);
+			const jsonentry_t* data = JSON_Find(sub_item, "data", JSON_STRING);
+			M_Campaign_Add(name->string, data->string);
+			sub_item = sub_item->next;
+		}
 	}
 
 	M_Campaign_Refilter();
@@ -12797,6 +12720,52 @@ typedef struct
 	const char* description;
 } level_t;
 
+level_t		levels[] =
+{
+	{"start", "Entrance"},	// 0
+
+	{"2MAPA2", "Cervejinha e Satanismo"},				// 1
+	{"3MAPATREZE", "MARACA"},
+	{"4CARRETA", "CARRETA FURINGAO"},
+	{"5salga", "SALGUEIRO"},
+	{"chavinha19", "SALVE A VILA"},
+	{"praca16", "SALVE SAVIO"},
+	{"aniversarioguanaSAOGONCALO", "SUPERMERCADO CHUPARABA"},
+	{"surfamazonia", "SURFAMAZONIA"},
+	{"zegaroto", "PRACA DO ZE GAROTO"},
+	{"6globe", "ESTUDIOS GLOBE"},
+	{"7niteroi", "NITEROI"},
+	{"8varginhao", "AMIGOS ET DE VARGINHA"},
+	{"9cristopaodeacucar", "Cristo e pao de acucar juntado"},
+	{"10cristopaodeacucar2", "SALVE EDINHO"},
+	{"11EDINHO", "CASA DO ED COM SEGREDO"},
+	{"12copaloco", "Copacana e show do mamadas"},
+	{"13sambodromo", "Sambodromo"},
+	{"14metrorio", "METRO DO RIO"},
+	{"15amanha", "MUSEU DO AMANHA"},
+	{"16ULTIMAFASE", "BATALHA COM DEMONIO VASQINO"},
+	{"17final", "o final de tudo"},
+	{"18finalepilogue", "RESENHA COM MIT E AMIGOS NO CEU"},
+
+	{"e4m1", "The Sewage System"},				// 23
+	{"e4m2", "The Tower of Despair"},
+	{"e4m3", "The Elder God Shrine"},
+	{"e4m4", "The Palace of Hate"},
+	{"e4m5", "Hell's Atrium"},
+	{"e4m6", "The Pain Maze"},
+	{"e4m7", "Azure Agony"},
+	{"e4m8", "The Nameless City"},
+
+	{"end", "Shub-Niggurath's Pit"},			// 31
+
+	{"dm1", "Place of Two Deaths"},				// 32
+	{"dm2", "Claustrophobopolis"},
+	{"dm3", "The Abandoned Base"},
+	{"dm4", "The Bad Place"},
+	{"dm5", "The Cistern"},
+	{"dm6", "The Dark Zone"}
+};
+
 //MED 01/06/97 added hipnotic levels
 level_t     hipnoticlevels[] =
 {
@@ -12855,6 +12824,17 @@ typedef struct
 	int		levels;
 } episode_t;
 
+episode_t	episodes[] =
+{
+	{"AVIAOZIN3", 0, 23},
+	{"AVIAOZIN3", 0, 23},
+	{"AVIAOZIN3", 0, 23},
+	{"AVIAOZIN3", 0, 23},
+	{"AVIAOZIN3", 0, 23},
+	{"AVIAOZIN3", 0, 23},
+	{"AVIAOZIN3", 0, 23}
+};
+
 //MED 01/06/97  added hipnotic episodes
 episode_t   hipnoticepisodes[] =
 {
@@ -12878,6 +12858,90 @@ episode_t	rogueepisodes[] =
 
 extern cvar_t sv_public;
 
+static level_t	*campaignlevels = NULL;
+static int		campaignlevelcount = 0;
+
+static void M_GameOptions_FreeCampaign(void)
+{
+	int i;
+
+	for (i = 0; i < campaignlevelcount; i++)
+	{
+		free((void *)campaignlevels[i].name);
+		free((void *)campaignlevels[i].description);
+	}
+
+	free(campaignlevels);
+	campaignlevels = NULL;
+	campaignlevelcount = 0;
+}
+
+static char *M_GameOptions_CopyString(const char *src)
+{
+	size_t	len = strlen(src) + 1;
+	char	*out = (char *)malloc(len);
+
+	if (out)
+		memcpy(out, src, len);
+
+	return out;
+}
+
+static void M_GameOptions_LoadCampaign(void)
+{
+	const char		*data;
+	json_t			*json;
+	jsonentry_t		*item;
+	int				count;
+
+	M_GameOptions_FreeCampaign();
+
+	data = (const char *)COM_LoadMallocFile("campaign.json", NULL);
+	if (!data)
+		return;
+
+	json = JSON_Parse(data);
+	free((void *)data);
+	if (!json)
+		return;
+
+	count = 0;
+	for (item = json->root->firstchild; item; item = item->next)
+		count++;
+
+	if (count > 0)
+	{
+		campaignlevels = (level_t *)malloc(sizeof(*campaignlevels) * count);
+
+		if (campaignlevels)
+		{
+			for (item = json->root->firstchild; item; item = item->next)
+			{
+				const jsonentry_t *name = JSON_Find(item, "name", JSON_STRING);
+				const jsonentry_t *desc = JSON_Find(item, "data", JSON_STRING);
+
+				if (!name || !name->string)
+					continue;
+
+				campaignlevels[campaignlevelcount].name = M_GameOptions_CopyString(name->string);
+				campaignlevels[campaignlevelcount].description = M_GameOptions_CopyString(
+					(desc && desc->string) ? desc->string : name->string);
+
+				if (!campaignlevels[campaignlevelcount].name ||
+					!campaignlevels[campaignlevelcount].description)
+					break;
+
+				campaignlevelcount++;
+			}
+		}
+	}
+
+	JSON_Free(json);
+
+	if (!campaignlevelcount)
+		M_GameOptions_FreeCampaign();
+}
+
 int	startepisode;
 int	startlevel;
 int maxplayers;
@@ -12888,16 +12952,26 @@ void M_Menu_GameOptions_f(void)
 	m_state = m_gameoptions;
 	IN_UpdateGrabs();
 	m_entersound = true;
-	if (!hipnotic && !rogue)
-	{
-		startepisode = 0;
-		if (startlevel >= M_Campaign_GetMapCount())
-			startlevel = 0;
-	}
 	if (maxplayers == 0)
 		maxplayers = svs.maxclients;
 	if (maxplayers < 2)
 		maxplayers = 16;
+
+	if (!hipnotic && !rogue)
+	{
+		M_GameOptions_LoadCampaign();
+
+		if (campaignlevelcount)
+		{
+			startepisode = 0;
+
+			if (startlevel >= campaignlevelcount)
+				startlevel = campaignlevelcount - 1;
+
+			if (startlevel < 0)
+				startlevel = 0;
+		}
+	}
 }
 
 
@@ -13057,8 +13131,10 @@ void M_GameOptions_Draw(void)
 		M_Print(160, y, hipnoticepisodes[startepisode].description);
 	else if (rogue)
 		M_Print(160, y, rogueepisodes[startepisode].description);
+	else if (campaignlevelcount)
+		M_Print(160, y, LOC_GetString("$menu_campaign"));
 	else
-		M_Print(160, y, CAMPAIGN_EPISODE_NAME);
+		M_Print(160, y, episodes[startepisode].description);
 	y += 8;
 
 	M_Print(0, y, LOC_GetString("$menu_level"));
@@ -13078,16 +13154,21 @@ void M_GameOptions_Draw(void)
 		else
 			M_PrintWhite(160, y + 8, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name);
 	}
+	else if (campaignlevelcount)
+	{
+		M_Print(160, y, LOC_GetString(campaignlevels[startlevel].description));
+		if (m_skill_mapname[0])
+			M_PrintRGBA(160, y + 8, campaignlevels[startlevel].name, CL_PLColours_Parse("0xffffff"), 0.5, false);
+		else
+			M_PrintWhite(160, y + 8, campaignlevels[startlevel].name);
+	}
 	else
 	{
-		const campaignmap_t* map = M_Campaign_GetMap(startlevel);
-		const char* mapname = map ? map->name : "";
-
-		M_Print(160, y, map ? LOC_GetString(map->description) : LOC_GetString("$menu_none"));
+		M_Print(160, y, levels[episodes[startepisode].firstLevel + startlevel].description);
 		if (m_skill_mapname[0])
-			M_PrintRGBA(160, y + 8, mapname, CL_PLColours_Parse("0xffffff"), 0.5, false);
+			M_PrintRGBA(160, y + 8, levels[episodes[startepisode].firstLevel + startlevel].name, CL_PLColours_Parse("0xffffff"), 0.5, false);
 		else
-			M_PrintWhite(160, y + 8, mapname);
+			M_PrintWhite(160, y + 8, levels[episodes[startepisode].firstLevel + startlevel].name);
 	}
 	y += 24;
 
@@ -13164,8 +13245,12 @@ void M_NetStart_Change(int dir)
 		//PGM 03/02/97 added 1 for dmatch episode
 		else if (rogue)
 			count = 4;
-		else
+		else if (campaignlevelcount)
 			count = 1;
+		else if (registered.value)
+			count = 7;
+		else
+			count = 2;
 
 		if (startepisode < 0)
 			startepisode = count - 1;
@@ -13185,14 +13270,10 @@ void M_NetStart_Change(int dir)
 		//PGM 01/06/97 added hipnotic episodes
 		else if (rogue)
 			count = rogueepisodes[startepisode].levels;
+		else if (campaignlevelcount)
+			count = campaignlevelcount;
 		else
-			count = M_Campaign_GetMapCount();
-
-		if (count <= 0)
-		{
-			startlevel = 0;
-			break;
-		}
+			count = episodes[startepisode].levels;
 
 		if (startlevel < 0)
 			startlevel = count - 1;
@@ -13265,23 +13346,6 @@ void M_GameOptions_Key(int key)
 		S_LocalSound("misc/menu2.wav");
 		if (gameoptions_cursor == 0)
 		{
-			const char* mapname;
-
-			if (m_skill_mapname[0])
-				mapname = m_skill_mapname;
-			else if (hipnotic)
-				mapname = hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].name;
-			else if (rogue)
-				mapname = roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name;
-			else
-			{
-				const campaignmap_t* map = M_Campaign_GetMap(startlevel);
-				mapname = map ? map->name : NULL;
-			}
-
-			if (!mapname || !*mapname)
-				return;
-
 			if (sv.active)
 				Cbuf_AddText("disconnect\n");
 
@@ -13291,7 +13355,21 @@ void M_GameOptions_Key(int key)
 			Cbuf_AddText(va("maxplayers %u\n", maxplayers));
 			SCR_BeginLoadingPlaque();
 
-			Cbuf_AddText(va("map %s\n", mapname));
+			if (m_skill_mapname[0])  // If custom map is selected
+			{
+				Cbuf_AddText(va("map %s\n", m_skill_mapname));
+			}
+			else  // Use regular episode/level selection
+			{
+				if (hipnotic)
+					Cbuf_AddText(va("map %s\n", hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].name));
+				else if (rogue)
+					Cbuf_AddText(va("map %s\n", roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name));
+				else if (campaignlevelcount)
+					Cbuf_AddText(va("map %s\n", campaignlevels[startlevel].name));
+				else
+					Cbuf_AddText(va("map %s\n", levels[episodes[startepisode].firstLevel + startlevel].name));
+			}
 
 			return;
 		}
@@ -16034,6 +16112,4 @@ void M_CheckMods(void) // woods #modsmenu (iw)
 
 	m_skill_usecustomtitle = 1;/*M_CheckCustomGfx("gfx/p_skill.lmp",
 		"gfx/ttl_sgl.lmp", 6728, sgl_hashes, countof(sgl_hashes));*/
-
-	M_Campaign_UnloadMaps();
 }
