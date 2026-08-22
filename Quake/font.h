@@ -22,9 +22,11 @@ typedef struct {
 
 extern UnicodeBlock unicode_blocks[];
 
-int font_index;
+extern int font_index;
 
 void select_font(void);
+qboolean select_font_for_language(const char *locfile);
+void reload_fonts(void);
 int generate_font_pngs();
 int setup_fonts();
 void draw_character_quad_ex(int x, int y, Uint32 codepoint, int r, int g, int b);

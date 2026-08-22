@@ -29,7 +29,7 @@
 #define MUSIC_DIRNAME	"music"
 
 qboolean	bgmloop;
-cvar_t		bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE};
+cvar_t		bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE}; //avião
 
 
 extern qboolean muted; // woods #usermute #mute

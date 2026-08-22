@@ -520,10 +520,9 @@ void Draw_NewGame(void)
 qboolean Draw_ReloadTextures(qboolean force)
 {
 	extern cvar_t gl_load24bit;
-	if (draw_load24bit != !!gl_load24bit.value)
-		force = true;
+	qboolean want24bit = (gl_load24bit.value > 0 && gl_load24bit_hud.value != 0); // woods #24bithud
 
-	if (draw_load24bit != !!gl_load24bit_hud.value) // woods #24bithud
+	if (draw_load24bit != want24bit)
 		force = true;
 
 	if (force)
@@ -534,10 +533,9 @@ qboolean Draw_ReloadTextures(qboolean force)
 		Cache_Flush();
 		Mod_ResetAll();
 
-		if (!setup_fonts()) {
-			exit(200);
-		}
-		
+		if (!setup_fonts())
+			Con_Warning("Draw_ReloadTextures: missing glyph atlases for font %i\n", font_index);
+
 		return true;
 	}
 	return false;

@@ -3223,11 +3223,38 @@ static struct
 } languagesmenu;
 
 
+static const char* M_Language_BaseName(const char* file)
+{
+	const char* last;
+
+	if (!file)
+		return "";
+
+	last = file;
+	while (*file)
+	{
+		if (*file == '/' || *file == '\\')
+			last = file + 1;
+		file++;
+	}
+	return last;
+}
+
 static void M_Language_Add(const char* name, const char* filename)
 {
 	languageitem_t language;
-	strncpy(language.name, to_utf8(name), sizeof(language.name));
-	strncpy(language.filename, to_utf8(filename), sizeof(language.filename));
+	const char* utf8;
+
+	memset(&language, 0, sizeof(language));
+
+	utf8 = to_utf8(name);
+	q_strlcpy(language.name, utf8 ? utf8 : "", sizeof(language.name));
+	utf8 = to_utf8(filename);
+	q_strlcpy(language.filename, utf8 ? utf8 : "", sizeof(language.filename));
+
+	language.active = language.filename[0] &&
+		!q_strcasecmp(M_Language_BaseName(language.filename), M_Language_BaseName(LOC_GetFile()));
+
 	if (language.active && languagesmenu.list.cursor == -1)
 		languagesmenu.list.cursor = languagesmenu.list.numitems;
 
@@ -3255,9 +3282,9 @@ static void M_Language_Init(void)
 	Pipe_Write("languages");
 	for (;;) {
 		if (!Pipe_Read()) break; if (pipe_buffer[0] == '\x04') break;
-		char name[1024];  strncpy(name, pipe_buffer, sizeof(name));
+		char name[1024];  q_strlcpy(name, pipe_buffer, sizeof(name));
 		if (!Pipe_Read()) break;
-		char filename[1024];  strncpy(filename, pipe_buffer, sizeof(filename));
+		char filename[1024];  q_strlcpy(filename, pipe_buffer, sizeof(filename));
 		M_Language_Add(name, filename);
 	}
 
@@ -3372,11 +3399,20 @@ void M_Language_Key(int key)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	enter:
-		languageitem_t* selected_language = &languagesmenu.items[languagesmenu.list.cursor];
-		LOC_LoadFile(selected_language->filename);
-		select_font();
-		Draw_ReloadTextures(true);
-		M_Menu_Main_f();
+		{
+			languageitem_t* selected_language;
+
+			if (languagesmenu.list.cursor < 0 || languagesmenu.list.cursor >= languagesmenu.list.numitems)
+				break;
+
+			selected_language = &languagesmenu.items[languagesmenu.list.cursor];
+			LOC_LoadFile(selected_language->filename);
+
+			if (select_font_for_language(selected_language->filename))
+				reload_fonts();
+
+			M_Menu_Main_f();
+		}
 		break;
 
 	case K_MOUSE1: // woods #mousemenu

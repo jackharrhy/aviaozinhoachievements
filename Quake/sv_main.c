@@ -1214,7 +1214,7 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, qcvm->worldmodel);
-	if (sv.skyroom_pos_known)
+	if (sv.skyroom_pos_known && qcvm->worldmodel && qcvm->worldmodel->nodes)
 	{
 		VectorMA(sv.skyroom_pos, sv.skyroom_pos[3], org, org);
 		SV_AddToFatPVS (org, qcvm->worldmodel->nodes, qcvm->worldmodel); //spike -- allow _skyroom term to punch a hole through the server's pvs. FIXME: no paralax considered here.
@@ -2406,6 +2406,7 @@ crosses a waterline.
 */
 
 static int	fatbytes;
+static int	fatpvsbytes;
 static byte	*fatpvs;
 static int	fatpvs_capacity;
 static qboolean fatpvs_any;
@@ -2434,6 +2435,9 @@ static void SV_AddToFatPVS (vec3_t org, mnode_t *node, qmodel_t *worldmodel) //j
 	mplane_t	*plane;
 	float	d;
 
+	if (!node || !worldmodel)
+		return;
+
 	while (1)
 	{
 	// if this is a leaf, accumulate the pvs bits
@@ -2443,11 +2447,16 @@ static void SV_AddToFatPVS (vec3_t org, mnode_t *node, qmodel_t *worldmodel) //j
 			{
 				fatpvs_any = true;
 				pvs = Mod_LeafPVS ( (mleaf_t *)node, worldmodel); //johnfitz -- worldmodel as a parameter
-				for (i = 0; i < fatbytes - 3; i += 4)
+				for (i = 0; i + 3 < fatpvsbytes; i += 4)
 					*(uint32_t*)&fatpvs[i] |= *(uint32_t*)&pvs[i];
+				for (; i < fatpvsbytes; i++)
+					fatpvs[i] |= pvs[i];
 			}
 			return;
 		}
+
+		if (!node->children[0] || !node->children[1])
+			return;
 
 		plane = node->plane;
 		d = DotProduct (org, plane->normal) - plane->dist;
@@ -2473,7 +2482,19 @@ given point.
 */
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) //johnfitz -- added worldmodel as a parameter
 {
-	fatbytes = (worldmodel->numleafs + 31) / 8;
+	qboolean valid = (worldmodel != NULL && worldmodel->nodes != NULL && worldmodel->numleafs > 0);
+
+	if (valid)
+	{
+		fatbytes = (worldmodel->numleafs + 31) / 8;
+		fatpvsbytes = (worldmodel->numleafs + 7) / 8;
+	}
+	else if (fatbytes <= 0)
+	{
+		fatbytes = 32;
+		fatpvsbytes = 0;
+	}
+
 	if (fatpvs == NULL || fatbytes > fatpvs_capacity)
 	{
 		fatpvs_capacity = fatbytes;
@@ -2481,7 +2502,13 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) //johnfitz -- added worldmode
 		if (!fatpvs)
 			Sys_Error ("SV_FatPVS: realloc() failed on %d bytes", fatpvs_capacity);
 	}
-	
+
+	if (!valid)
+	{
+		memset (fatpvs, 0xff, fatbytes);
+		return fatpvs;
+	}
+
 	Q_memset (fatpvs, 0, fatbytes);
 	fatpvs_any = false;
 	SV_AddToFatPVS (org, worldmodel->nodes, worldmodel); //johnfitz -- worldmodel as a parameter
@@ -2554,7 +2581,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, qcvm->worldmodel);
-	if (sv.skyroom_pos_known)
+	if (sv.skyroom_pos_known && qcvm->worldmodel && qcvm->worldmodel->nodes)
 	{
 		VectorMA(sv.skyroom_pos, sv.skyroom_pos[3], org, org);
 		SV_AddToFatPVS (org, qcvm->worldmodel->nodes, qcvm->worldmodel); //spike -- allow _skyroom term to punch a hole through the server's pvs. FIXME: no paralax considered here.

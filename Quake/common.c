@@ -5125,6 +5125,8 @@ typedef struct
 
 static localization_t localization;
 
+static char localization_file[MAX_QPATH];
+
 /*
 ================
 COM_HashString
@@ -5178,9 +5180,12 @@ void LOC_LoadFile (const char *file)
 	}
 	localization.numentries = 0;
 	localization.numindices = 0;
+	localization_file[0] = '\0';
 
 	if (!file || !*file)
 		return;
+
+	q_strlcpy (localization_file, file, sizeof(localization_file));
 
 	Con_Printf("\nLanguage initialization\n");
 
@@ -5359,7 +5364,7 @@ LOC_Init
 void LOC_Init(void)
 {
 	int startPos = COM_CheckParm("-language");
-	if (startPos != 0 && startPos < sizeof(com_argv) - 1) {
+	if (startPos != 0 && startPos + 1 < com_argc) {
 		char filename[64] = "localization/";
 		q_strlcpy(filename + 13, com_argv[startPos + 1], sizeof(filename) - 13);
 		LOC_LoadFile(filename);
@@ -5367,6 +5372,16 @@ void LOC_Init(void)
 	else {
 		LOC_LoadFile("localization/loc_english.txt");
 	}
+}
+
+/*
+================
+LOC_GetFile
+================
+*/
+const char *LOC_GetFile (void)
+{
+	return localization_file;
 }
 
 /*

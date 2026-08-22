@@ -3,6 +3,8 @@
 #include "image.h"
 #include <Windows.h>
 
+int font_index = 0;
+
 UnicodeBlock unicode_blocks[] = {
 	// Línguas latinas
 	{0x0000, 0x007F, 0, 0, 0, 0}, // Basic Latin
@@ -199,23 +201,75 @@ int copy_glyph(UnicodeBlock* block, SDL_Surface* glyph, SDL_Surface* destination
 	return 0;
 }
 
+/*
+================
+font_basename
+================
+*/
+static const char *font_basename (const char *file)
+{
+	const char *last;
+
+	if (!file)
+		return "";
+
+	last = file;
+	while (*file)
+	{
+		if (*file == '/' || *file == '\\')
+			last = file + 1;
+		file++;
+	}
+	return last;
+}
+
+/*
+================
+font_index_for_language
+================
+*/
+static int font_index_for_language (const char *locfile)
+{
+	const char *language = font_basename (locfile);
+
+	if (!q_strcasecmp (language, "loc_chinese.txt") ||
+		!q_strcasecmp (language, "loc_chinese2.txt") ||
+		!q_strcasecmp (language, "loc_japanese.txt") ||
+		!q_strcasecmp (language, "loc_korean.txt"))
+		return 1;
+
+	return 0;
+}
+
+/*
+================
+select_font
+================
+*/
 void select_font(void)
 {
 	int startPos = COM_CheckParm("-language");
-	if (startPos != 0 && startPos < sizeof(com_argv) - 1) {
-		const char* language = com_argv[startPos + 1];
-		if (
-			strcmp(language, "loc_chinese.txt") == 0 ||
-			strcmp(language, "loc_chinese2.txt") == 0 ||
-			strcmp(language, "loc_japanese.txt") == 0 ||
-			strcmp(language, "loc_korean.txt") == 0
-			)
-		{
-			font_index = 1;
-			return;
-		}
+
+	if (startPos != 0 && startPos + 1 < com_argc)
+		font_index = font_index_for_language (com_argv[startPos + 1]);
+	else
 		font_index = 0;
-	}
+}
+
+/*
+================
+select_font_for_language
+================
+*/
+qboolean select_font_for_language (const char *locfile)
+{
+	int wanted = font_index_for_language (locfile);
+
+	if (wanted == font_index)
+		return false;
+
+	font_index = wanted;
+	return true;
 }
 
 int generate_font_pngs(void)
@@ -370,16 +424,47 @@ int generate_font_pngs(void)
 
 int setup_fonts(void)
 {
+	int ok = 1;
+
 	for (int i = 0; i < num_blocks; i++)
 	{
 		UnicodeBlock* block = &unicode_blocks[i];
 		char* relative_filename = va("fonts/glyphs%i_%i", font_index, i);
-		block->texture = TexMgr_LoadImage(NULL, relative_filename, 0, 0, SRC_EXTERNAL, NULL, relative_filename, 0, TEXPREF_NEAREST | TEXPREF_ALPHA);
+		gltexture_t* texture = TexMgr_LoadImage(NULL, relative_filename, 0, 0, SRC_EXTERNAL, NULL, relative_filename, 0, TEXPREF_NEAREST | TEXPREF_ALPHA);
+
+		if (!texture)
+		{
+			ok = 0;
+			continue;
+		}
+
+		block->texture = texture;
 		block->columns = COLUMNS;
-		block->tex_width = block->texture->width;
-		block->tex_height = block->texture->height;
+		block->tex_width = texture->width;
+		block->tex_height = texture->height;
 	}
-	return 1;
+	return ok;
+}
+
+/*
+================
+reload_fonts
+================
+*/
+void reload_fonts(void)
+{
+	for (int i = 0; i < num_blocks; i++)
+	{
+		UnicodeBlock* block = &unicode_blocks[i];
+		if (block->texture)
+			TexMgr_FreeTexture (block->texture);
+		block->texture = NULL;
+		block->tex_width = 0;
+		block->tex_height = 0;
+	}
+
+	if (!setup_fonts())
+		Con_Warning ("reload_fonts: missing glyph atlases for font %i\n", font_index);
 }
 
 
@@ -392,7 +477,7 @@ void draw_character_quad_ex_inner(int x, int y, Uint32 codepoint, int r, int g, 
 			break;
 		}
 	}
-	if (!block) {
+	if (!block || !block->texture || !block->tex_width || !block->tex_height) {
 		return;
 	}
 
