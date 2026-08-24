@@ -5167,34 +5167,42 @@ unsigned COM_HashBlock(const void* data, size_t size)
 LOC_LoadFile
 ================
 */
-void LOC_LoadFile (const char *file)
+qboolean LOC_LoadFile (const char *file)
 {
 	int i,lineno;
 	char *cursor;
-
-	// clear existing data
-	if (localization.text)
-	{
-		free(localization.text);
-		localization.text = NULL;
-	}
-	localization.numentries = 0;
-	localization.numindices = 0;
-	localization_file[0] = '\0';
+	char *text;
 
 	if (!file || !*file)
-		return;
-
-	q_strlcpy (localization_file, file, sizeof(localization_file));
+	{
+		if (localization.text)
+		{
+			free(localization.text);
+			localization.text = NULL;
+		}
+		localization.numentries = 0;
+		localization.numindices = 0;
+		localization_file[0] = '\0';
+		return false;
+	}
 
 	Con_Printf("\nLanguage initialization\n");
 
-	localization.text = (char*)COM_LoadFile(file, LOADFILE_MALLOC, NULL);
-	if (!localization.text)
+	text = (char *) COM_LoadFile (file, LOADFILE_MALLOC, NULL);
+	if (!text)
 	{
 		Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
-		return;
+		if (localization.numindices)
+			Con_Printf("keeping '%s'\n", localization_file);
+		return false;
 	}
+
+	if (localization.text)
+		free(localization.text);
+	localization.text = text;
+	localization.numentries = 0;
+	localization.numindices = 0;
+	q_strlcpy (localization_file, file, sizeof(localization_file));
 
 	cursor = localization.text;
 
@@ -5325,7 +5333,7 @@ void LOC_LoadFile (const char *file)
 	if (localization.numindices == 0)
 	{
 		Con_Printf("No localized strings in file '%s'\n", file);
-		return;
+		return false;
 	}
 
 	localization.indices = (unsigned*) realloc(localization.indices, localization.numindices * sizeof(*localization.indices));
@@ -5354,6 +5362,7 @@ void LOC_LoadFile (const char *file)
 	}
 
 	Con_Printf("Loaded %d strings from '%s'\n", localization.numentries, file);
+	return true;
 }
 
 /*
@@ -5365,13 +5374,14 @@ void LOC_Init(void)
 {
 	int startPos = COM_CheckParm("-language");
 	if (startPos != 0 && startPos + 1 < com_argc) {
-		char filename[64] = "localization/";
-		q_strlcpy(filename + 13, com_argv[startPos + 1], sizeof(filename) - 13);
-		LOC_LoadFile(filename);
+		char filename[MAX_QPATH];
+		q_snprintf(filename, sizeof(filename), "localization/%s", com_argv[startPos + 1]);
+		if (LOC_LoadFile(filename))
+			return;
+		Con_Printf("Falling back to localization/loc_english.txt\n");
 	}
-	else {
-		LOC_LoadFile("localization/loc_english.txt");
-	}
+
+	LOC_LoadFile("localization/loc_english.txt");
 }
 
 /*
@@ -5434,6 +5444,100 @@ const char* LOC_GetRawString (const char *key)
 	return NULL;
 }
 
+#define LOC_BIND_NUM_BUFFERS	4
+#define LOC_BIND_BUFFERLEN		1280
+#define LOC_BIND_MAXCOMMAND		64
+
+static qboolean LOC_ParseBindPlaceholder (const char *str, char *cmd, size_t cmdsize, size_t *span)
+{
+	const char *start;
+	const char *end;
+	size_t n;
+	qboolean alldigits = true;
+
+	if (*str != '{')
+		return false;
+
+	start = str + 1;
+	for (end = start; *end && *end != '}' && *end != '{' && *end != '\n'; end++)
+		if (!q_isdigit(*end))
+			alldigits = false;
+
+	if (*end != '}' || end == start || alldigits)
+		return false;
+
+	n = (size_t)(end - start);
+	if (n >= cmdsize)
+		return false;
+
+	memcpy (cmd, start, n);
+	cmd[n] = '\0';
+	*span = n + 2;
+	return true;
+}
+
+/*
+================
+LOC_ExpandBinds
+================
+*/
+const char *LOC_ExpandBinds (const char *str)
+{
+	static char buffers[LOC_BIND_NUM_BUFFERS][LOC_BIND_BUFFERLEN];
+	static int bufidx = 0;
+
+	char cmd[LOC_BIND_MAXCOMMAND];
+	char keys[128];
+	const char *scan;
+	char *out;
+	size_t written;
+	size_t span;
+	qboolean found = false;
+
+	if (!str)
+		return str;
+
+	for (scan = str; *scan; scan++)
+	{
+		if (*scan == '{' && LOC_ParseBindPlaceholder (scan, cmd, sizeof(cmd), &span))
+		{
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return str;
+
+	bufidx = (bufidx + 1) & (LOC_BIND_NUM_BUFFERS - 1);
+	out = buffers[bufidx];
+	written = 0;
+
+	scan = str;
+	while (*scan && written < LOC_BIND_BUFFERLEN - 1)
+	{
+		if (*scan == '{' && LOC_ParseBindPlaceholder (scan, cmd, sizeof(cmd), &span))
+		{
+			size_t klen;
+
+			Key_GetBindingDisplay (cmd, keys, sizeof(keys));
+			klen = strlen (keys);
+			if (written + klen > LOC_BIND_BUFFERLEN - 1)
+				klen = LOC_BIND_BUFFERLEN - 1 - written;
+
+			memcpy (out + written, keys, klen);
+			written += klen;
+			scan += span;
+			continue;
+		}
+
+		out[written++] = *scan++;
+	}
+
+	out[written] = '\0';
+	return out;
+}
+
 /*
 ================
 LOC_GetString
@@ -5444,7 +5548,7 @@ Returns localized string if available, or input string otherwise
 const char* LOC_GetString (const char *key)
 {
 	const char* value = LOC_GetRawString(key);
-	return value ? value : key;
+	return LOC_ExpandBinds(value ? value : key);
 }
 
 /*

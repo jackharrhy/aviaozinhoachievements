@@ -55,6 +55,54 @@ static char* get_utf8_buffer(void) {
 	return utf8_buffers[buffer_idx];
 }
 
+static size_t utf8_decode_step(const unsigned char* p, const unsigned char* limit, Uint32* out)
+{
+	Uint32 code;
+	size_t used;
+
+	if (p[0] < 0x80) {
+		code = p[0];
+		used = 1;
+	}
+	else if ((p[0] & 0xE0) == 0xC0 &&
+		(size_t)(limit - p) >= 2 &&
+		(p[1] & 0xC0) == 0x80)
+	{
+		code = ((p[0] & 0x1F) << 6) |
+			(p[1] & 0x3F);
+		used = 2;
+	}
+	else if ((p[0] & 0xF0) == 0xE0 &&
+		(size_t)(limit - p) >= 3 &&
+		(p[1] & 0xC0) == 0x80 &&
+		(p[2] & 0xC0) == 0x80)
+	{
+		code = ((p[0] & 0x0F) << 12) |
+			((p[1] & 0x3F) << 6) |
+			(p[2] & 0x3F);
+		used = 3;
+	}
+	else if ((p[0] & 0xF8) == 0xF0 &&
+		(size_t)(limit - p) >= 4 &&
+		(p[1] & 0xC0) == 0x80 &&
+		(p[2] & 0xC0) == 0x80 &&
+		(p[3] & 0xC0) == 0x80)
+	{
+		code = ((p[0] & 0x07) << 18) |
+			((p[1] & 0x3F) << 12) |
+			((p[2] & 0x3F) << 6) |
+			(p[3] & 0x3F);
+		used = 4;
+	}
+	else {
+		code = '?';
+		used = 1;
+	}
+
+	*out = code;
+	return used;
+}
+
 Uint32 utf8_decode_nth(const char* input,
 	int        index,
 	size_t     length)
@@ -63,52 +111,55 @@ Uint32 utf8_decode_nth(const char* input,
 	const unsigned char* limit = p + length;
 	Uint32 code = ' ';
 
+	if (!input || index < 0)
+		return ' ';
+
 	while (p < limit && *p)
 	{
-		if (p[0] < 0x80) {
-			code = p[0];
-			p += 1;
-		}
-		else if ((p[0] & 0xE0) == 0xC0 &&
-			(size_t)(limit - p) >= 2 &&
-			(p[1] & 0xC0) == 0x80)
-		{
-			code = ((p[0] & 0x1F) << 6) |
-				(p[1] & 0x3F);
-			p += 2;
-		}
-		else if ((p[0] & 0xF0) == 0xE0 &&
-			(size_t)(limit - p) >= 3 &&
-			(p[1] & 0xC0) == 0x80 &&
-			(p[2] & 0xC0) == 0x80)
-		{
-			code = ((p[0] & 0x0F) << 12) |
-				((p[1] & 0x3F) << 6) |
-				(p[2] & 0x3F);
-			p += 3;
-		}
-		else if ((p[0] & 0xF8) == 0xF0 &&
-			(size_t)(limit - p) >= 4 &&
-			(p[1] & 0xC0) == 0x80 &&
-			(p[2] & 0xC0) == 0x80 &&
-			(p[3] & 0xC0) == 0x80)
-		{
-			code = ((p[0] & 0x07) << 18) |
-				((p[1] & 0x3F) << 12) |
-				((p[2] & 0x3F) << 6) |
-				(p[3] & 0x3F);
-			p += 4;
-		}
-		else {
-			code = '?';
-			p += 1;
-		}
+		p += utf8_decode_step(p, limit, &code);
 
 		if (index-- == 0)
 			return code;
 	}
 
 	return ' ';
+}
+
+size_t utf8_strlen(const char* input, size_t length)
+{
+	const unsigned char* p = (const unsigned char*)input;
+	const unsigned char* limit = p + length;
+	size_t count = 0;
+	Uint32 code;
+
+	if (!input)
+		return 0;
+
+	while (p < limit && *p)
+	{
+		p += utf8_decode_step(p, limit, &code);
+		count++;
+	}
+
+	return count;
+}
+
+size_t utf8_byte_offset(const char* input, size_t index, size_t length)
+{
+	const unsigned char* p = (const unsigned char*)input;
+	const unsigned char* limit = p + length;
+	Uint32 code;
+
+	if (!input)
+		return 0;
+
+	while (index && p < limit && *p)
+	{
+		p += utf8_decode_step(p, limit, &code);
+		index--;
+	}
+
+	return (size_t)(p - (const unsigned char*)input);
 }
 
 char* to_utf8(const char* str) {
@@ -468,15 +519,38 @@ void reload_fonts(void)
 }
 
 
+static UnicodeBlock* find_block(Uint32 codepoint)
+{
+	for (int j = 0; j < num_blocks; j++) {
+		if (codepoint >= unicode_blocks[j].start && codepoint <= unicode_blocks[j].end)
+			return &unicode_blocks[j];
+	}
+	return NULL;
+}
+
+static Uint32 fallback_codepoint(Uint32 codepoint)
+{
+	if (codepoint >= 0xFF01 && codepoint <= 0xFF5E)
+		return codepoint - 0xFEE0;
+	if (codepoint == 0x3000 || codepoint == 0xFF00)
+		return ' ';
+	if (codepoint == 0xFFE5)
+		return '$';
+	return codepoint;
+}
+
 void draw_character_quad_ex_inner(int x, int y, Uint32 codepoint, int r, int g, int b)
 {
-	UnicodeBlock* block = NULL;
-	for (int j = 0; j < num_blocks; j++) {
-		if (codepoint >= unicode_blocks[j].start && codepoint <= unicode_blocks[j].end) {
-			block = &unicode_blocks[j];
-			break;
+	UnicodeBlock* block = find_block(codepoint);
+
+	if (!block || !block->texture || !block->tex_width || !block->tex_height) {
+		Uint32 alt = fallback_codepoint(codepoint);
+		if (alt != codepoint) {
+			block = find_block(alt);
+			codepoint = alt;
 		}
 	}
+
 	if (!block || !block->texture || !block->tex_width || !block->tex_height) {
 		return;
 	}

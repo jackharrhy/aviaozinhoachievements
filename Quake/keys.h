@@ -197,6 +197,14 @@ qboolean Key_TextEntry (void);
 void Key_SetBinding (int keynum, const char *binding, int bindmap);
 const char *Key_KeynumToString (int keynum);
 int Key_StringToKeynum (const char *str);
+
+#define KEY_MAX_BINDS_SHOWN	3
+#define KEY_BIND_SEPARATOR	"/"
+#define KEY_BIND_UNBOUND	"UNBOUND"
+
+qboolean Key_BindingMatchesCommand (const char *binding, const char *command);
+int Key_FindKeysForCommand (const char *command, int *keys, int maxkeys, int bindmap);
+size_t Key_GetBindingDisplay (const char *command, char *out, size_t outsize);
 int Key_NativeToQC(int code);
 int Key_QCToNative(int code);	//warning: will return negative values for unknown qc keys.
 void Key_WriteBindings (FILE *f);

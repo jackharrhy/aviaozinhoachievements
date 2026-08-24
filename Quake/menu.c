@@ -351,10 +351,11 @@ void M_DrawArrowCursor(int cx, int cy) // woods #skillmenu (iw)
 
 void M_PrintColor(int cx, int cy, const char* str)
 {
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		plcolour_t color;
 		color.type = 2;
 		color.basic = 0;
@@ -368,10 +369,11 @@ void M_PrintColor(int cx, int cy, const char* str)
 
 void M_Print(int cx, int cy, const char* str)
 {
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		plcolour_t color;
 		color.type = 2;
 		color.basic = 0;
@@ -386,13 +388,14 @@ void M_Print(int cx, int cy, const char* str)
 void M_PrintWithLimit(int cx, int cy, const char* str, int max_len)
 {
 	int start_cx = cx;
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
 		if (max_len > 0 && i > max_len) {
 			break;
 		}
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		M_DrawCharacter(cx, cy, codepoint);
 		cx += 8;
 	}
@@ -402,20 +405,21 @@ void M_PrintWithBreak(int cx, int cy, const char* str, int max_len, int line_len
 {
 	int start_cx = cx;
 	int line_chars = 0;
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
 		if (max_len > 0 && i > max_len) {
 			break;
 		}
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		if (codepoint == 13) {
 			continue;
 		}
 		else if (codepoint == '\n') {
 			cy += 8;
 			cx = start_cx;
-			if (utf8_decode_nth(str, i + 1, len) == ' ') {
+			if (utf8_decode_nth(str, i + 1, bytes) == ' ') {
 				i++;
 			}
 			line_chars = 0;
@@ -423,7 +427,7 @@ void M_PrintWithBreak(int cx, int cy, const char* str, int max_len, int line_len
 		else if (line_len > 0 && line_chars >= line_len) {
 			cy += 8;
 			cx = start_cx;
-			if (utf8_decode_nth(str, i + 1, len) == ' ') {
+			if (utf8_decode_nth(str, i + 1, bytes) == ' ') {
 				i++;
 			}
 			M_DrawCharacter(cx, cy, codepoint);
@@ -445,10 +449,11 @@ void M_DrawCharacterRGBA(int cx, int line, Uint32 num, plcolour_t c, float alpha
 void M_PrintRGBA(int cx, int cy, const char* str, plcolour_t c, float alpha, qboolean mask) // woods
 {
 
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		M_DrawCharacter(cx, cy, codepoint);
 		cx += 8;
 	}
@@ -457,10 +462,11 @@ void M_PrintRGBA(int cx, int cy, const char* str, plcolour_t c, float alpha, qbo
 void M_Print2(int cx, int cy, const char* str) // woods #speed yellow/gold numbers
 {
 
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		M_DrawCharacter(cx, cy, codepoint);
 		cx += 8;
 	}
@@ -468,10 +474,11 @@ void M_Print2(int cx, int cy, const char* str) // woods #speed yellow/gold numbe
 
 void M_PrintWhite(int cx, int cy, const char* str)
 {
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(str, i, len);
+		Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 		M_DrawCharacter(cx, cy, codepoint);
 		cx += 8;
 	}
@@ -707,24 +714,30 @@ void M_PrintHighlight(int x, int y, const char* str, const char* search, int sea
 		return;
 	}
 
-	int pos = match - str;
+	size_t prefix_bytes = (size_t)(match - str);
+	size_t match_bytes = (size_t)searchlen;
+	size_t tail_bytes = strlen(match + match_bytes);
+	int pos = (int)utf8_strlen(str, prefix_bytes);
+	int matchchars = (int)utf8_strlen(match, match_bytes);
+	int tailchars = (int)utf8_strlen(match + match_bytes, tail_bytes);
 	int i;
+
 	for (i = 0; i < pos; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(str, i, pos);
+		Uint32 codepoint = utf8_decode_nth(str, i, prefix_bytes);
 		M_DrawCharacter(x + i * 8, y, codepoint /*^ 128*/);
 	}
 
-	for (i = 0; i < searchlen && match[i]; i++)
+	for (i = 0; i < matchchars; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(match, i, strlen);
+		Uint32 codepoint = utf8_decode_nth(match, i, match_bytes);
 		M_DrawCharacter(x + (pos + i) * 8, y, codepoint);
 	}
 
-	for (i = 0; match[i + searchlen]; i++)
+	for (i = 0; i < tailchars; i++)
 	{
-		Uint32 codepoint = utf8_decode_nth(match, i + searchlen, 256); //todo: 256?
-		M_DrawCharacter(x + (pos + searchlen + i) * 8, y, codepoint /*^ 128*/);
+		Uint32 codepoint = utf8_decode_nth(match + match_bytes, i, tail_bytes);
+		M_DrawCharacter(x + (pos + matchchars + i) * 8, y, codepoint /*^ 128*/);
 	}
 }
 
@@ -733,9 +746,9 @@ void M_PrintScroll(int x, int y, int maxwidth, const char* str, double time, qbo
 {
 
 	int maxchars = maxwidth / 8;
-	int len = strlen(str);
+	size_t bytes = strlen(str);
+	int len = (int)utf8_strlen(str, bytes);
 	int i, ofs;
-	char mask = /*color ? 128 : */0;
 
 	if (len <= maxchars)
 	{
@@ -753,8 +766,8 @@ void M_PrintScroll(int x, int y, int maxwidth, const char* str, double time, qbo
 
 	for (i = 0; i < maxchars; i++)
 	{
-		char c = (ofs < len) ? str[ofs] : " /// "[ofs - len];
-		M_DrawCharacter(x, y, c ^ mask);
+		Uint32 c = (ofs < len) ? utf8_decode_nth(str, ofs, bytes) : (Uint32)(unsigned char)" /// "[ofs - len];
+		M_DrawCharacter(x, y, c);
 		x += 8;
 		if (++ofs >= len + 5)
 			ofs = 0;
@@ -765,16 +778,20 @@ void M_PrintScroll2(int x, int y, int maxwidth, const char* str, const char* str
 {
 
 	int maxchars = maxwidth / 8;
-	int len_str = (int)strlen(str);
+	size_t str_bytes = strlen(str);
+	int len_str = (int)utf8_strlen(str, str_bytes);
 
 	int effective_len_str = (time != 0.0) ? len_str : q_min(len_str, 12);
 
 	char masked_str[MAX_QPATH];
-	for (int i = 0; i < effective_len_str; i++)
-		masked_str[i] = (char)(str[i] /*^ 128*/);
-	masked_str[effective_len_str] = '\0';
+	size_t masked_bytes = utf8_byte_offset(str, (size_t)effective_len_str, str_bytes);
+	if (masked_bytes >= sizeof(masked_str))
+		masked_bytes = utf8_byte_offset(str, utf8_strlen(str, sizeof(masked_str) - 1), sizeof(masked_str) - 1);
+	memcpy(masked_str, str, masked_bytes);
+	masked_str[masked_bytes] = '\0';
 
 	int padding_width = q_min(max_word_length + 1, 13);
+	padding_width += (int)(masked_bytes - utf8_strlen(masked_str, masked_bytes));
 
 	char combined[MAX_CHAT_SIZE_EX];
 	if (time != 0.0 && len_str > 12)
@@ -782,7 +799,8 @@ void M_PrintScroll2(int x, int y, int maxwidth, const char* str, const char* str
 	else
 		q_snprintf(combined, sizeof(combined), "%-*s%s", padding_width, masked_str, str2);
 
-	int combined_len = (int)strlen(combined);
+	size_t combined_bytes = strlen(combined);
+	int combined_len = (int)utf8_strlen(combined, combined_bytes);
 
 	if (combined_len <= maxchars) {
 		M_PrintWhite(x, y, combined);
@@ -796,11 +814,11 @@ void M_PrintScroll2(int x, int y, int maxwidth, const char* str, const char* str
 		ofs += scroll_len;
 
 	for (int i = 0; i < maxchars; i++) {
-		char c;
+		Uint32 c;
 		if (ofs < combined_len)
-			c = combined[ofs];
+			c = utf8_decode_nth(combined, ofs, combined_bytes);
 		else
-			c = gap[ofs - combined_len];
+			c = (Uint32)(unsigned char)gap[ofs - combined_len];
 
 		M_DrawCharacter(x + (i * 8), y, c);
 		ofs = (ofs + 1) % scroll_len;
@@ -815,12 +833,13 @@ void M_PrintHighlightScroll2(int x, int y, int maxwidth,
 	int maxchars = maxwidth / 8;
 
 	char name_str[256];
-	int len_str = (int)strlen(str);
+	size_t str_bytes = strlen(str);
+	int len_str = (int)utf8_strlen(str, str_bytes);
 	int effective_len_str = (time != 0.0) ? len_str : (len_str > 12 ? 12 : len_str);
 
 	q_strlcpy(name_str, str, sizeof(name_str));
 	if (effective_len_str < len_str)
-		name_str[effective_len_str] = '\0';
+		name_str[utf8_byte_offset(name_str, (size_t)effective_len_str, strlen(name_str))] = '\0';
 
 	char name_portion[256];
 	if (time != 0.0 && len_str > 12)
@@ -829,22 +848,27 @@ void M_PrintHighlightScroll2(int x, int y, int maxwidth,
 		int padding_width = max_word_length + 1;
 		if (padding_width > 13)
 			padding_width = 13;
+		padding_width += (int)(strlen(name_str) - utf8_strlen(name_str, strlen(name_str)));
 		q_snprintf(name_portion, sizeof(name_portion), "%-*s", padding_width, name_str);
 	}
 
 	char combined[1024];
 	q_snprintf(combined, sizeof(combined), "%s%s", name_portion, str2);
 
-	int actual_name_len = (int)strlen(name_portion);
-	int combined_len = (int)strlen(combined);
+	size_t name_portion_bytes = strlen(name_portion);
+	size_t combined_bytes = strlen(combined);
+	size_t str2_bytes = strlen(str2);
+	int actual_name_len = (int)utf8_strlen(name_portion, name_portion_bytes);
+	int combined_len = (int)utf8_strlen(combined, combined_bytes);
+	int str2_len = (int)utf8_strlen(str2, str2_bytes);
 	int name_end = actual_name_len;
 
 	int name_highlight_start = -1, name_highlight_end = -1;
 	if (highlight && highlight[0]) {
 		const char* nm = q_strcasestr(name_str, highlight);
 		if (nm) {
-			name_highlight_start = (int)(nm - name_str);
-			name_highlight_end = name_highlight_start + (int)strlen(highlight);
+			name_highlight_start = (int)utf8_strlen(name_str, (size_t)(nm - name_str));
+			name_highlight_end = name_highlight_start + (int)utf8_strlen(highlight, strlen(highlight));
 			if (name_highlight_end > effective_len_str)
 				name_highlight_end = effective_len_str;
 		}
@@ -854,16 +878,16 @@ void M_PrintHighlightScroll2(int x, int y, int maxwidth,
 	if (highlight && highlight[0]) {
 		const char* dm = q_strcasestr(str2, highlight);
 		if (dm) {
-			desc_highlight_start = (int)(dm - str2);
-			desc_highlight_end = desc_highlight_start + (int)strlen(highlight);
-			if (desc_highlight_end > (int)strlen(str2))
-				desc_highlight_end = (int)strlen(str2);
+			desc_highlight_start = (int)utf8_strlen(str2, (size_t)(dm - str2));
+			desc_highlight_end = desc_highlight_start + (int)utf8_strlen(highlight, strlen(highlight));
+			if (desc_highlight_end > str2_len)
+				desc_highlight_end = str2_len;
 		}
 	}
 
 	if (combined_len <= maxchars) {
 		for (int i = 0; i < actual_name_len; i++) {
-			char ch = combined[i];
+			Uint32 ch = utf8_decode_nth(combined, i, combined_bytes);
 			qboolean is_highlighted = (i < effective_len_str &&
 				name_highlight_start != -1 &&
 				i >= name_highlight_start &&
@@ -874,8 +898,8 @@ void M_PrintHighlightScroll2(int x, int y, int maxwidth,
 		}
 
 		int desc_x = x + actual_name_len * 8;
-		for (int i = 0; i < (int)strlen(str2); i++) {
-			char ch = str2[i];
+		for (int i = 0; i < str2_len; i++) {
+			Uint32 ch = utf8_decode_nth(str2, i, str2_bytes);
 			qboolean is_highlighted = (desc_highlight_start != -1 &&
 				i >= desc_highlight_start &&
 				i < desc_highlight_end);
@@ -897,7 +921,7 @@ void M_PrintHighlightScroll2(int x, int y, int maxwidth,
 			continue;
 		}
 
-		char ch = combined[pos];
+		Uint32 ch = utf8_decode_nth(combined, pos, combined_bytes);
 		qboolean is_highlighted = false;
 		qboolean is_bronzed = false;
 
@@ -926,11 +950,12 @@ void M_PrintHighlightScroll2(int x, int y, int maxwidth,
 void M_PrintHighlightScroll(int x, int y, int maxwidth, const char* str, const char* highlight, double time)
 {
 	int maxchars = maxwidth / 8;
-	int len_str = strlen(str);
 
 	char name_str[MAX_CHAT_SIZE_EX];
-	strncpy(name_str, str, sizeof(name_str) - 1);
-	name_str[sizeof(name_str) - 1] = '\0';
+	q_strlcpy(name_str, str, sizeof(name_str));
+
+	size_t name_bytes = strlen(name_str);
+	int len_str = (int)utf8_strlen(name_str, name_bytes);
 
 	int name_highlight_start = -1, name_highlight_end = -1;
 	if (highlight && highlight[0])
@@ -938,8 +963,8 @@ void M_PrintHighlightScroll(int x, int y, int maxwidth, const char* str, const c
 		const char* name_match = q_strcasestr(name_str, highlight);
 		if (name_match)
 		{
-			name_highlight_start = name_match - name_str;
-			name_highlight_end = name_highlight_start + strlen(highlight);
+			name_highlight_start = (int)utf8_strlen(name_str, (size_t)(name_match - name_str));
+			name_highlight_end = name_highlight_start + (int)utf8_strlen(highlight, strlen(highlight));
 			if (name_highlight_end > len_str)
 				name_highlight_end = len_str;
 		}
@@ -953,12 +978,12 @@ void M_PrintHighlightScroll(int x, int y, int maxwidth, const char* str, const c
 	for (int i = 0; i < maxchars; i++)
 	{
 		int pos_in_str = (ofs + i) % scroll_len;
-		char ch;
+		Uint32 ch;
 		qboolean is_highlighted = false;
 
 		if (pos_in_str < len_str)
 		{
-			ch = name_str[pos_in_str];
+			ch = utf8_decode_nth(name_str, pos_in_str, name_bytes);
 
 			if (name_highlight_start != -1 &&
 				pos_in_str >= name_highlight_start && pos_in_str < name_highlight_end)
@@ -972,7 +997,7 @@ void M_PrintHighlightScroll(int x, int y, int maxwidth, const char* str, const c
 		}
 
 		if (is_highlighted)
-			M_DrawCharacter(x + i * 8, y, ch & 127);
+			M_DrawCharacter(x + i * 8, y, ch);
 		else
 			M_DrawCharacter(x + i * 8, y, ch /*| 128*/);
 	}
@@ -3406,10 +3431,17 @@ void M_Language_Key(int key)
 				break;
 
 			selected_language = &languagesmenu.items[languagesmenu.list.cursor];
-			LOC_LoadFile(selected_language->filename);
 
-			if (select_font_for_language(selected_language->filename))
-				reload_fonts();
+			if (LOC_LoadFile(selected_language->filename))
+			{
+				if (select_font_for_language(selected_language->filename))
+					reload_fonts();
+			}
+			else
+			{
+				Con_Warning("Language '%s' could not be loaded from '%s'\n",
+					selected_language->name, selected_language->filename);
+			}
 
 			M_Menu_Main_f();
 		}
@@ -5007,25 +5039,7 @@ void M_Menu_Keys_f(void)
 
 qboolean IsCompleteCommand(const char* binding, const char* command)
 {
-	if (!strcmp(binding, command))
-		return true;
-
-	if (strstr(command, "impulse ") == command)
-	{
-		if (strstr(binding, "impulse ") == binding)
-		{
-			const char* bind_num = binding + 8;
-			const char* cmd_num = command + 8;
-
-			char* bind_end;
-			char* cmd_end;
-			int bind_val = strtol(bind_num, &bind_end, 10);
-			int cmd_val = strtol(cmd_num, &cmd_end, 10);
-
-			return (*bind_end == '\0' && *cmd_end == '\0' && bind_val == cmd_val);
-		}
-	}
-	return false;
+	return Key_BindingMatchesCommand(binding, command);
 }
 
 void M_FindKeysForCommand(const char* command, int* threekeys)
@@ -10188,14 +10202,15 @@ static void GetCenteredTextPosition(const char* text, int* out_x, int* out_y)
 {
 	int max_width = 0;
 	int width = 0;
-	int strl = strlen(text);
+	size_t bytes = strlen(text);
+	int strl = (int)utf8_strlen(text, bytes);
 	for (int i = 0; i < strl; i++) {
-		Uint32 codepoint = utf8_decode_nth(text, i, strl);
+		Uint32 codepoint = utf8_decode_nth(text, i, bytes);
 		if (codepoint == '\n') {
-			if (utf8_decode_nth(text, i - 1, strl) == ' ') {
+			if (i > 0 && utf8_decode_nth(text, i - 1, bytes) == ' ') {
 				width -= 8;
 			}
-			if (utf8_decode_nth(text, i + 1, strl) == ' ') {
+			if (utf8_decode_nth(text, i + 1, bytes) == ' ') {
 				width -= 8;
 			}
 			if (width > max_width) {
@@ -10212,7 +10227,7 @@ static void GetCenteredTextPosition(const char* text, int* out_x, int* out_y)
 
 	int height = 8;
 	for (int i = 0; i < strl; i++) {
-		Uint32 codepoint = utf8_decode_nth(text, i, strl);
+		Uint32 codepoint = utf8_decode_nth(text, i, bytes);
 		if (codepoint == '\n') {
 			height += 8;
 		}

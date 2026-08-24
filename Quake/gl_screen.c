@@ -224,6 +224,8 @@ void SCR_CenterPrint(const char* str) //update centerprint data
 {
 	unsigned int flags = 0;
 
+	str = LOC_ExpandBinds(str);
+
 	countdown = false; // woods #clearcrxcountdown
 	cameras = false; // woods #crxcamera
 	qeintermission = false; // woods #qeintermission
@@ -472,10 +474,13 @@ void SCR_CenterPrint(const char* str) //update centerprint data
 		{
 			scr_center_lines++;
 			scr_center_maxcols = q_max(scr_center_maxcols, cols); // woods #centerprintbg (iw)
-			cols = -1; // compensate the following ++
+			cols = 0;
+			str++;
+			continue;
 		}
+		if (((unsigned char)*str & 0xC0) != 0x80)
+			cols++;
 		str++;
-		cols++;
 	}
 	scr_center_maxcols = q_max(scr_center_maxcols, cols);
 }
@@ -644,11 +649,13 @@ void SCR_DrawCenterStringBottom(void)
 	do
 	{
 		// scan line width
-		for (l = 0; l < 40; l++)
-		{
-			if (start[l] == '\n' || !start[l])
-				break;
-		}
+		size_t linebytes = 0;
+		while (start[linebytes] && start[linebytes] != '\n')
+			linebytes++;
+
+		l = (int)utf8_strlen(start, linebytes);
+		if (l > 40)
+			l = 40;
 
 		// horizontal centering
 		x = (320 - l * 8) / 2;
@@ -656,7 +663,7 @@ void SCR_DrawCenterStringBottom(void)
 		for (j = 0; j < l; j++, x += 8)
 		{
 			Uint32 codepoint =
-				utf8_decode_nth(start, j, l);
+				utf8_decode_nth(start, j, linebytes);
 
 			Draw_CharacterRGBA(
 				x,
@@ -766,18 +773,20 @@ void SCR_DrawCenterString(void)
 
 	do
 	{
-		for (l = 0; l < 40; l++)
-		{
-			if (start[l] == '\n' || !start[l])
-				break;
-		}
+		size_t linebytes = 0;
+		while (start[linebytes] && start[linebytes] != '\n')
+			linebytes++;
+
+		l = (int)utf8_strlen(start, linebytes);
+		if (l > 40)
+			l = 40;
 
 		x = (320 - l * 8) / 2;
 
 		for (j = 0; j < l; j++, x += 8)
 		{
 			Uint32 codepoint =
-				utf8_decode_nth(start, j, l);
+				utf8_decode_nth(start, j, linebytes);
 
 			Draw_CharacterRGBA(
 				x,

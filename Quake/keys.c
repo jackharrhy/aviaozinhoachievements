@@ -1308,6 +1308,97 @@ const char *Key_KeynumToString (int keynum)
 
 /*
 ===================
+Key_BindingMatchesCommand
+===================
+*/
+qboolean Key_BindingMatchesCommand (const char *binding, const char *command)
+{
+	if (!binding || !command)
+		return false;
+
+	if (!strcmp (binding, command))
+		return true;
+
+	if (!strncmp (command, "impulse ", 8) && !strncmp (binding, "impulse ", 8))
+	{
+		char *bind_end;
+		char *cmd_end;
+		long bind_val = strtol (binding + 8, &bind_end, 10);
+		long cmd_val = strtol (command + 8, &cmd_end, 10);
+
+		return (*bind_end == '\0' && *cmd_end == '\0' && bind_val == cmd_val);
+	}
+
+	return false;
+}
+
+/*
+===================
+Key_FindKeysForCommand
+===================
+*/
+int Key_FindKeysForCommand (const char *command, int *keys, int maxkeys, int bindmap)
+{
+	int count = 0;
+	int j;
+
+	if (!command || !keys || maxkeys <= 0)
+		return 0;
+
+	if (bindmap < 0 || bindmap >= MAX_BINDMAPS)
+		bindmap = 0;
+
+	for (j = 0; j < MAX_KEYS && count < maxkeys; j++)
+		if (Key_BindingMatchesCommand (keybindings[bindmap][j], command))
+			keys[count++] = j;
+
+	return count;
+}
+
+/*
+===================
+Key_GetBindingDisplay
+===================
+*/
+size_t Key_GetBindingDisplay (const char *command, char *out, size_t outsize)
+{
+	int keys[KEY_MAX_BINDS_SHOWN];
+	int count;
+	int i;
+
+	if (!out || !outsize)
+		return 0;
+	*out = '\0';
+
+	count = Key_FindKeysForCommand (command, keys, KEY_MAX_BINDS_SHOWN, key_bindmap[0]);
+	if (!count && key_bindmap[0] != 0)
+		count = Key_FindKeysForCommand (command, keys, KEY_MAX_BINDS_SHOWN, 0);
+
+	if (!count)
+	{
+		q_strlcpy (out, KEY_BIND_UNBOUND, outsize);
+		return strlen (out);
+	}
+
+	for (i = 0; i < count; i++)
+	{
+		char name[64];
+
+		if (i)
+			q_strlcat (out, KEY_BIND_SEPARATOR, outsize);
+
+		q_strlcpy (name, Key_KeynumToString (keys[i]), sizeof(name));
+		if (name[0] && !name[1])
+			name[0] = (char) q_toupper (name[0]);
+
+		q_strlcat (out, name, outsize);
+	}
+
+	return strlen (out);
+}
+
+/*
+===================
 Key_SetBinding
 ===================
 */

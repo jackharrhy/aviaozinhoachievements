@@ -685,13 +685,14 @@ Draw_String_Right -- avi�o - draws string right aligned
 */
 void Draw_String_Right(int x, int y, const char* str)
 {
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	int startX = x - (int)(len * 8);
 
 	for (size_t i = 0; i < len; i++)
 	{
 		//if (str[i] != 32) { // don't waste verts on spaces
-			Uint32 codepoint = utf8_decode_nth(str, i, len);
+			Uint32 codepoint = utf8_decode_nth(str, (int)i, bytes);
 			draw_character_quad_ex(startX, y, codepoint, 255, 255, 255);
 		//}
 		startX += 8;
@@ -704,11 +705,12 @@ Draw_String -- johnfitz -- modified to call Draw_CharacterQuad
 */
 void Draw_String(int x, int y, const char* str)
 {
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
 		//if (str[i] != 32) { //don't waste verts on spaces
-			Uint32 codepoint = utf8_decode_nth(str, i, len);
+			Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 			draw_character_quad_ex(x, y, codepoint, 255, 255, 255);
 		//}
 		x += 8;
@@ -736,11 +738,12 @@ void Draw_StringRGBA(int x, int y, const char* str, plcolour_t c, float alpha)
 		color[2] = pal[2];
 		color[3] = alpha * 255;
 	}
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	for (int i = 0; i < len; i++)
 	{
 		//if (str[i] != 32) {
-			Uint32 codepoint = utf8_decode_nth(str, i, len);
+			Uint32 codepoint = utf8_decode_nth(str, i, bytes);
 			draw_character_quad_ex(x, y, codepoint, color[0], color[1], color[2]);
 		//}
 		x += 8;
@@ -765,13 +768,14 @@ void Draw_StringRGBA_Right(int x, int y, const char* str, plcolour_t c, float al
 		color[3] = (unsigned char)(alpha * 255);
 	}
 
-	size_t len = strlen(str);
+	size_t bytes = strlen(str);
+	size_t len = utf8_strlen(str, bytes);
 	int startX = x - (int)(len * 8);
 
 	for (size_t i = 0; i < len; i++)
 	{
 		//if (str[i] != 32) { // don't waste verts on spaces
-			Uint32 codepoint = utf8_decode_nth(str, i, len);
+			Uint32 codepoint = utf8_decode_nth(str, (int)i, bytes);
 			draw_character_quad_ex(startX, y, codepoint,
 				color[0], color[1], color[2]);
 		//}
