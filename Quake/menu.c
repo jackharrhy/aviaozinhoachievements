@@ -11757,7 +11757,6 @@ void M_LanConfig_Draw(void)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 			}
 			y += 16;
-#endif
 			M_Print(basex, y, LOC_GetString("$menu_quake_needs_port_forward"));
 			y += 8;
 			M_Print(basex, y, LOC_GetString("$menu_to_create_servers"));
@@ -11768,6 +11767,7 @@ void M_LanConfig_Draw(void)
 			y += 8;
 			M_Print(basex, y, " ");
 			y += 4;
+#endif
 		}
 		else
 		{
