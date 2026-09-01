@@ -144,7 +144,11 @@ cvar_t		scr_usekfont = { "scr_usekfont", "0", CVAR_NONE }; // 2021 re-release
 cvar_t		cl_predict = { "cl_predict", "0", CVAR_NONE }; // 2021 re-release
 
 cvar_t		scr_demobar_timeout = { "scr_demobar_timeout", "1", CVAR_ARCHIVE }; // woods (iw) #democontrols
+#ifdef BDDPRE4
 cvar_t		scr_viewsize = { "viewsize","100", CVAR_ARCHIVE };
+#else
+cvar_t		scr_viewsize = { "viewsize","120", CVAR_ARCHIVE };
+#endif
 cvar_t		scr_fov = { "fov","90",CVAR_ARCHIVE };	// 10 - 170
 cvar_t		scr_fov_adapt = { "fov_adapt","1",CVAR_ARCHIVE };
 cvar_t		scr_zoomfov = { "zoom_fov","30",CVAR_ARCHIVE };	// 10 - 170 // woods #zoom (ironwail)
@@ -993,7 +997,7 @@ static void SCR_CalcRefdef(void)
 	size = scr_viewsize.value;
 	scale = CLAMP(1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 
-	if (size >= 120 || cl.intermission || (scr_sbaralpha.value < 1 || cl.qcvm.extfuncs.CSQC_DrawHud || cl.qcvm.extfuncs.CSQC_UpdateView)) //johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
+	if (size >= 120 || cl.intermission || (SCR_SBARALPHA < 1 || cl.qcvm.extfuncs.CSQC_DrawHud || cl.qcvm.extfuncs.CSQC_UpdateView)) //johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;

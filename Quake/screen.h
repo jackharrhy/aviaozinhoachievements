@@ -58,6 +58,11 @@ extern	qboolean	scr_skipupdate;
 extern	cvar_t		scr_viewsize;
 
 extern	cvar_t		scr_sbaralpha; //johnfitz
+#ifdef BDDPRE4
+#define SCR_SBARALPHA	1.0f
+#else
+#define SCR_SBARALPHA	scr_sbaralpha.value
+#endif
 extern	cvar_t		scr_sbaralphaqwammo; // woods #sbarstyles
 extern	cvar_t		scr_sbarshowqeammo; // woods #sbarstyles
 extern	cvar_t		scr_sbar; // woods #sbarstyles

@@ -8082,8 +8082,8 @@ static enum hud_e
 	HUD_CROSSHAIR,
 	HUD_SCALE,
 	HUD_SCRSIZE,
-	HUD_SBALPHA,
 #ifndef BDDPRE4
+	HUD_SBALPHA,
 	HUD_SBARSTYLE,
 #endif
 	HUD_SHOWFPS,
@@ -8126,9 +8126,9 @@ static const char* M_HUD_GetItemText(int index)
 		return LOC_GetString("$menu_hud_scale");
 	case HUD_SCRSIZE:
 		return LOC_GetString("$menu_screen_size");
+#ifndef BDDPRE4
 	case HUD_SBALPHA:
 		return LOC_GetString("$menu_statusbar_alpha");
-#ifndef BDDPRE4
 	case HUD_SBARSTYLE:
 		return LOC_GetString("$menu_status_bar_style");
 #endif
@@ -8198,13 +8198,13 @@ static void M_HUD_AdjustSliders(int dir)
 		Cvar_SetValue("viewsize", f);
 		break;
 
+#ifndef BDDPRE4
 	case HUD_SBALPHA:
 		f = scr_sbaralpha.value - dir * 0.05;
 		if (f < 0) f = 0;
 		else if (f > 1) f = 1;
 		Cvar_SetValue("scr_sbaralpha", f);
 		break;
-#ifndef BDDPRE4
 	case HUD_SBARSTYLE:
 		value = scr_sbar.value + dir;
 		if (value > 3) value = 1;
@@ -8308,13 +8308,13 @@ void M_HUD_Draw(void)
 			M_DrawSlider(186, y, r, scr_viewsize.value, "%.0f");
 			break;
 
+#ifndef BDDPRE4
 		case HUD_SBALPHA:
 			text = LOC_GetString("$menu_statusbar_alpha_indented");
 			r = (1.0 - scr_sbaralpha.value);
 			M_DrawSlider(186, y, r, 100.0f * r, "%.0f%%");
 			break;
 
-#ifndef BDDPRE4
 		case HUD_SBARSTYLE:
 			text = LOC_GetString("$menu_status_bar_style_indented");
 			switch ((int)scr_sbar.value)
@@ -8588,7 +8588,9 @@ void M_HUD_Key(int k)
 
 			if (hud_cursor == HUD_SCALE ||
 				hud_cursor == HUD_SCRSIZE ||
+#ifndef BDDPRE4
 				hud_cursor == HUD_SBALPHA ||
+#endif
 				hud_cursor == HUD_CONSOLEFONT)
 			{
 				hud_slider_grab = true;
@@ -8705,10 +8707,12 @@ void M_HUD_Mousemove(int cx, int cy)
 			Cvar_SetValue("viewsize", f);
 			break;
 
+#ifndef BDDPRE4
 		case HUD_SBALPHA:
 			f = 1.0 - M_MouseToSliderFraction(cx - 187);
 			Cvar_SetValue("scr_sbaralpha", f);
 			break;
+#endif
 
 		case HUD_CONSOLEFONT:
 			f = M_MouseToSliderFraction(cx - 187);
@@ -11451,7 +11455,11 @@ LAN Config Menu
 int		lanConfig_cursor = -1;
 int     lanConfig_cursor_table_steamnewgame[] = { 52, 60 };
 int     lanConfig_cursor_table_newgame[] = { 52, 84, 94, 112 }; // Updated cursor positions for "New Game"
+#ifdef NO_PUBLIC
+int		lanConfig_cursor_table[] = { 84, -16, -16, 100, 108, 116, -16 };
+#else
 int		lanConfig_cursor_table[] = { 84, 102, 110, 116, 124, 148 }; // woods #mousemenu #bookmarksmenu
+#endif
 int* lanConfig_cursor_ptr = NULL; // Pointer to the current cursor table
 
 int     NUM_LANCONFIG_CMDS;
@@ -11577,6 +11585,10 @@ void M_Menu_LanConfig_f(void)
 	}
 	if (StartingGame && lanConfig_cursor >= 3)
 		lanConfig_cursor = 1;
+#ifdef NO_PUBLIC
+	if (JoiningGame && (lanConfig_cursor == 1 || lanConfig_cursor == 2))
+		lanConfig_cursor = 3;
+#endif
 	lanConfig_port = DEFAULTnet_hostport;
 	sprintf(lanConfig_portname, "%u", lanConfig_port);
 
@@ -11709,6 +11721,7 @@ void M_LanConfig_Draw(void)
 
 		if (JoiningGame)
 		{
+#ifndef NO_PUBLIC
 			y += 8;
 			M_Print(basex, y, LOC_GetString("$menu_search_for_local_games"));
 			if (lanConfig_cursor == 1)
@@ -11717,6 +11730,7 @@ void M_LanConfig_Draw(void)
 			M_Print(basex, y, LOC_GetString("$menu_search_for_public_games"));
 			if (lanConfig_cursor == 2)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
+#endif
 			y += 8;
 
 			M_Print(basex, y, LOC_GetString("$menu_search_for_steam_games"));
@@ -11732,6 +11746,7 @@ void M_LanConfig_Draw(void)
 			if (lanConfig_cursor == 5)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 			y += 8;
+#ifndef NO_PUBLIC
 			M_Print(basex, y, LOC_GetString("$menu_join_game_at_colon"));
 			y += 17;
 			M_DrawTextBox(basex + 8, y - 8, 22, 1);
@@ -11742,6 +11757,7 @@ void M_LanConfig_Draw(void)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 			}
 			y += 16;
+#endif
 			M_Print(basex, y, LOC_GetString("$menu_quake_needs_port_forward"));
 			y += 8;
 			M_Print(basex, y, LOC_GetString("$menu_to_create_servers"));
@@ -11864,6 +11880,14 @@ void M_LanConfig_Key(int key)
 			if (lanConfig_cursor < 0) {
 				lanConfig_cursor = NUM_LANCONFIG_CMDS_JOINGAME - 1;
 			}
+#ifdef NO_PUBLIC
+			if (lanConfig_cursor == 1 || lanConfig_cursor == 2) {
+				lanConfig_cursor = 0;
+			}
+			if (lanConfig_cursor == 6) {
+				lanConfig_cursor = 5;
+			}
+#endif
 		}
 		break;
 
@@ -11880,6 +11904,14 @@ void M_LanConfig_Key(int key)
 			if (lanConfig_cursor >= NUM_LANCONFIG_CMDS_JOINGAME) {
 				lanConfig_cursor = 0;
 			}
+#ifdef NO_PUBLIC
+			if (lanConfig_cursor == 1 || lanConfig_cursor == 2) {
+				lanConfig_cursor = 3;
+			}
+			if (lanConfig_cursor == 6) {
+				lanConfig_cursor = 0;
+			}
+#endif
 		}
 		break;
 
@@ -11956,6 +11988,7 @@ void M_LanConfig_Key(int key)
 		}
 		else
 		{
+#ifndef NO_PUBLIC
 			if (lanConfig_cursor == 1) {
 				Cbuf_AddText("steamserver 0"); //avião
 				M_Menu_Search_f(SLIST_LAN);
@@ -11964,7 +11997,9 @@ void M_LanConfig_Key(int key)
 				Cbuf_AddText("steamserver 0"); //avião
 				M_Menu_Search_f(SLIST_INTERNET);
 			}
-			else if (lanConfig_cursor == 3) {
+			else
+#endif
+			if (lanConfig_cursor == 3) {
 				Cbuf_AddText("steamserver 1"); //avião
 				M_Menu_Search_f(SLIST_INTERNET);
 			}
@@ -11972,6 +12007,7 @@ void M_LanConfig_Key(int key)
 				M_Menu_History_f();
 			else if (lanConfig_cursor == 5) // woods #bookmarksmenu
 				M_Menu_Bookmarks_f();
+#ifndef NO_PUBLIC
 			else if (lanConfig_cursor == 6)
 			{
 				m_return_state = m_state;
@@ -11981,6 +12017,7 @@ void M_LanConfig_Key(int key)
 				IN_UpdateGrabs();
 				Cbuf_AddText(va("connect \"%s\"\n", lanConfig_joinname));
 			}
+#endif
 		}
 
 		break;
@@ -11992,11 +12029,13 @@ void M_LanConfig_Key(int key)
 				lanConfig_portname[strlen(lanConfig_portname) - 1] = 0;
 		}
 
+#ifndef NO_PUBLIC
 		if (lanConfig_cursor == 5) // woods #historymenu #bookmarksmenu
 		{
 			if (strlen(lanConfig_joinname))
 				lanConfig_joinname[strlen(lanConfig_joinname) - 1] = 0;
 		}
+#endif
 		break;
 	}
 
@@ -12033,6 +12072,7 @@ void M_LanConfig_Char(int key)
 			lanConfig_portname[l] = key;
 		}
 		break;
+#ifndef NO_PUBLIC
 	case 5: // woods #historymenu #bookmarksmenu
 		l = strlen(lanConfig_joinname);
 		if (l < 21)
@@ -12041,6 +12081,7 @@ void M_LanConfig_Char(int key)
 			lanConfig_joinname[l] = key;
 		}
 		break;
+#endif
 	}
 }
 
@@ -12821,7 +12862,11 @@ void M_Bookmarks_Edit_Mousemove(int cx, int cy) // woods #mousemenu
 
 qboolean M_LanConfig_TextEntry(void)
 {
+#ifdef NO_PUBLIC
+	return (lanConfig_cursor == 0);
+#else
 	return (lanConfig_cursor == 0 || lanConfig_cursor == 5); // woods #historymenu #bookmarksmenu
+#endif
 }
 
 void M_LanConfig_Mousemove(int cx, int cy)
@@ -13229,7 +13274,7 @@ void M_GameOptions_Draw(void)
 		switch ((int)teamplay.value)
 		{
 		case 1: msg = LOC_GetString("$menu_no_friendly_fire"); break;
-		case 2: msg = LOC_GetString("$menu_friendly_fire)"); break;
+		case 2: msg = LOC_GetString("$menu_friendly_fire"); break;
 		default: msg = LOC_GetString("$menu_off"); break;
 		}
 		M_Print(160, y, msg);
@@ -15338,11 +15383,13 @@ Credit Menu - used by the 2021 re-release
 void M_Menu_Credits_f(void)
 {}
 
+#ifndef NO_PUBLIC
 void M_Menu_SearchInternet_f(void) // woods
 {
 	Cbuf_AddText("steamserver 0"); //avião
 	M_Menu_Search_f(SLIST_INTERNET);
 }
+#endif
 
 static struct
 {
@@ -15357,7 +15404,9 @@ static struct
 	{"menu_save", M_Menu_Save_f},
 	{"menu_skill", M_Menu_Skill_f},
 	{"menu_multiplayer", M_Menu_MultiPlayer_f},
+#ifndef NO_PUBLIC
 	{"menu_slist", M_Menu_SearchInternet_f},
+#endif
 	{"menu_setup", M_Menu_Setup_f},
 	{"menu_options", M_Menu_Options_f},
 	{"menu_keys", M_Menu_Keys_f},

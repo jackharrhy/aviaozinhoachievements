@@ -6,6 +6,7 @@ option(QS_COPY_RUNTIME_DLLS "Copy runtime DLLs after build" ON)
 option(QS_FLESH "Enable Flesh definition" OFF)
 option(QS_BDD_PRE_4 "Enable BDDPRE4 definition" OFF)
 option(QS_BDD4_WARNING "Enable BDD4_WARNING definition (startup alert message)" OFF)
+option(QS_NO_PUBLIC "Enable NO_PUBLIC definition (hide lan/internet server browsing)" OFF)
 
 set(QS_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Build" CACHE PATH "Directory for the final executable")
 
@@ -28,7 +29,7 @@ else()
 endif()
 
 if(QS_BDD_PRE_4)
-    set(QS_DEFAULT_GAMENAMEEX "Aviao35")
+    set(QS_DEFAULT_GAMENAMEEX "AviaoPre4")
     set(QS_DEFAULT_PIPE_NAME "\\\\\\\\.\\\\pipe\\\\Aviaozinho35")
     set(QS_DEFAULT_SIGNAL_URL "wss://aviaozinho.duckdns.org/")
 elseif(QS_FLESH)
@@ -253,6 +254,12 @@ endif()
 if(QS_BDD4_WARNING)
     target_compile_definitions(quakespasm PRIVATE
         BDD4_WARNING
+    )
+endif()
+
+if(QS_NO_PUBLIC)
+    target_compile_definitions(quakespasm PRIVATE
+        NO_PUBLIC
     )
 endif()
 

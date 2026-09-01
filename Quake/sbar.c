@@ -848,13 +848,13 @@ void Sbar_DrawInventory(void)
 	if (rogue)
 	{
 		if (cl.stats[STAT_ACTIVEWEAPON] >= RIT_LAVA_NAILGUN)
-			Sbar_DrawPicAlpha(0, -24, rsb_invbar[0], scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+			Sbar_DrawPicAlpha(0, -24, rsb_invbar[0], SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 		else
-			Sbar_DrawPicAlpha(0, -24, rsb_invbar[1], scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+			Sbar_DrawPicAlpha(0, -24, rsb_invbar[1], SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 	}
 	else
 	{
-		Sbar_DrawPicAlpha(0, -24, sb_ibar, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+		Sbar_DrawPicAlpha(0, -24, sb_ibar, SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 	}
 
 	// weapons
@@ -1426,9 +1426,9 @@ void Sbar_DrawInventory_QW(void)
 		if (rogue)
 		{
 			if (cl.stats[STAT_ACTIVEWEAPON] >= RIT_LAVA_NAILGUN)
-				Sbar_DrawSubPicAlpha(0, 188 - 11 * (4 - i) - 24, rsb_invbar[0], 1 + (i * 48), 0, 44, 11, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+				Sbar_DrawSubPicAlpha(0, 188 - 11 * (4 - i) - 24, rsb_invbar[0], 1 + (i * 48), 0, 44, 11, SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 			else
-				Sbar_DrawSubPicAlpha(0, 188 - 11 * (4 - i) - 24, rsb_invbar[1], 1 + (i * 48), 0, 44, 11, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+				Sbar_DrawSubPicAlpha(0, 188 - 11 * (4 - i) - 24, rsb_invbar[1], 1 + (i * 48), 0, 44, 11, SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 		}
 		else
 			if (!scr_sbaralphaqwammo.value) // woods #sbarstyles
@@ -1459,7 +1459,7 @@ void Sbar_DrawInventory_QW(void)
 			else
 				flashon = (flashon % 5) + 2;
 
-			Sbar_DrawPicAlpha(20, 32 + i * 16 - (16 * extraguns) - 24, sb_weapons[flashon][i], scr_sbaralpha.value);
+			Sbar_DrawPicAlpha(20, 32 + i * 16 - (16 * extraguns) - 24, sb_weapons[flashon][i], SCR_SBARALPHA);
 
 			if (flashon > 1)
 				sb_updates = 0;		// force update to remove flash
@@ -1495,7 +1495,7 @@ void Sbar_DrawInventory_QW(void)
 						if (flashon)
 						{
 							grenadeflashing = 1;
-							Sbar_DrawPicAlpha(20, 40, hsb_weapons[flashon][2], scr_sbaralpha.value);
+							Sbar_DrawPicAlpha(20, 40, hsb_weapons[flashon][2], SCR_SBARALPHA);
 						}
 					}
 				}
@@ -1505,18 +1505,18 @@ void Sbar_DrawInventory_QW(void)
 					{
 						if (flashon && !grenadeflashing)
 						{
-							Sbar_DrawPicAlpha(20, 40, hsb_weapons[flashon][3], scr_sbaralpha.value);
+							Sbar_DrawPicAlpha(20, 40, hsb_weapons[flashon][3], SCR_SBARALPHA);
 						}
 						else if (!grenadeflashing)
 						{
-							Sbar_DrawPicAlpha(20, 40, hsb_weapons[0][3], scr_sbaralpha.value);
+							Sbar_DrawPicAlpha(20, 40, hsb_weapons[0][3], SCR_SBARALPHA);
 						}
 					}
 					else
-						Sbar_DrawPicAlpha(20, 40, hsb_weapons[flashon][4], scr_sbaralpha.value);
+						Sbar_DrawPicAlpha(20, 40, hsb_weapons[flashon][4], SCR_SBARALPHA);
 				}
 				else
-					Sbar_DrawPicAlpha(20, (i + 7) * 16 - 24, hsb_weapons[flashon][i], scr_sbaralpha.value);
+					Sbar_DrawPicAlpha(20, (i + 7) * 16 - 24, hsb_weapons[flashon][i], SCR_SBARALPHA);
 
 				if (flashon > 1)
 					sb_updates = 0;	// force update to remove flash
@@ -1533,7 +1533,7 @@ void Sbar_DrawInventory_QW(void)
 			{
 				if (cl.stats[STAT_ACTIVEWEAPON] == (RIT_LAVA_NAILGUN << i))
 				{
-					Sbar_DrawPicAlpha(20, (i + 2) * 16 - 24 + 32, rsb_weapons[i], scr_sbaralpha.value);
+					Sbar_DrawPicAlpha(20, (i + 2) * 16 - 24 + 32, rsb_weapons[i], SCR_SBARALPHA);
 				}
 			}
 		}
@@ -2432,7 +2432,7 @@ void Sbar_Draw(void)
 	if (cl.intermission)
 		return; //johnfitz -- never draw sbar during intermission
 
-	if (sb_updates >= vid.numpages && !gl_clear.value && scr_sbaralpha.value >= 1 //johnfitz -- gl_clear, scr_sbaralpha
+	if (sb_updates >= vid.numpages && !gl_clear.value && SCR_SBARALPHA >= 1 //johnfitz -- gl_clear, scr_sbaralpha
 		&& !(gl_glsl_gamma_able && vid_gamma.value != 1))                         //ericw -- must draw sbar every frame if doing glsl gamma
 		return;
 
@@ -2620,7 +2620,7 @@ void Sbar_Draw(void)
 	{
 		if (scr_viewsize.value < 120) //johnfitz -- check viewsize instead of sb_lines
 		{
-			Sbar_DrawPicAlpha(0, 0, sb_sbar, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+			Sbar_DrawPicAlpha(0, 0, sb_sbar, SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 
 			// keys (hipnotic only)
 				 //MED 01/04/97 moved keys here so they would not be overwritten
@@ -2720,7 +2720,7 @@ void Sbar_Draw(void)
 
 	if (sb_showscores/* || cl.stats[STAT_HEALTH] <= 0*/) // woods mimic qrack not showing scores on death
 	{
-		Sbar_DrawPicAlpha(0, 0, sb_scorebar, scr_sbaralpha.value); //johnfitz -- scr_sbaralpha
+		Sbar_DrawPicAlpha(0, 0, sb_scorebar, SCR_SBARALPHA); //johnfitz -- scr_sbaralpha
 		Sbar_DrawScoreboard();
 		sb_updates = 0;
 	}
