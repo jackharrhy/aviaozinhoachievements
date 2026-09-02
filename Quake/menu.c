@@ -3122,7 +3122,11 @@ All Mods Menu
 */
 
 int	m_allmods_cursor;
+#ifdef NO_PUBLIC
+#define	ALLMODS_ITEMS	1
+#else
 #define	ALLMODS_ITEMS	2
+#endif
 
 void M_Menu_AllMods_f(void)
 {
@@ -3153,9 +3157,11 @@ void M_AllMods_Draw(void)
 	int cursor;
 
 	M_Print(x * invScale, y * invScale, LOC_GetString("$menu_mods")); y += 20;
+#ifndef NO_PUBLIC
 	if (pipe_available) {
 		M_Print(x * invScale, y * invScale, LOC_GetString("$menu_workshop")); y += 20;
 	}
+#endif
 	glPopMatrix();
 
 	f = (int)(realtime * 10) % 6;
@@ -3204,11 +3210,13 @@ void M_AllMods_Key(int key)
 			M_Menu_Mods_f();
 			break;
 
+#ifndef NO_PUBLIC
 		case 1:
 			if (pipe_available) {
 				M_Menu_Workshop_Mods_f();
 			}
 			break;
+#endif
 		}
 	}
 }
@@ -11453,10 +11461,14 @@ LAN Config Menu
 */
 
 int		lanConfig_cursor = -1;
+#ifdef NO_PUBLIC
+int     lanConfig_cursor_table_steamnewgame[] = { -16, 60 };
+#else
 int     lanConfig_cursor_table_steamnewgame[] = { 52, 60 };
+#endif
 int     lanConfig_cursor_table_newgame[] = { 52, 84, 94, 112 }; // Updated cursor positions for "New Game"
 #ifdef NO_PUBLIC
-int		lanConfig_cursor_table[] = { 84, -16, -16, 100, 108, 116, -16 };
+int		lanConfig_cursor_table[] = { -16, -16, -16, 60, -16, -16, -16 };
 #else
 int		lanConfig_cursor_table[] = { 84, 102, 110, 116, 124, 148 }; // woods #mousemenu #bookmarksmenu
 #endif
@@ -11586,8 +11598,12 @@ void M_Menu_LanConfig_f(void)
 	if (StartingGame && lanConfig_cursor >= 3)
 		lanConfig_cursor = 1;
 #ifdef NO_PUBLIC
-	if (JoiningGame && (lanConfig_cursor == 1 || lanConfig_cursor == 2))
+	if (JoiningGame)
 		lanConfig_cursor = 3;
+	if (StartingGame) {
+		lanConfig_steam_server = 1;
+		lanConfig_cursor = 1;
+	}
 #endif
 	lanConfig_port = DEFAULTnet_hostport;
 	sprintf(lanConfig_portname, "%u", lanConfig_port);
@@ -11633,6 +11649,7 @@ void M_LanConfig_Draw(void)
 	y = 52;
 
 	//avião
+#ifndef NO_PUBLIC
 	if (StartingGame) {
 		M_Print(basex, y, LOC_GetString("$menu_steam_server"));
 		const char* steamServerDescription = lanConfig_steam_server == 0 ? LOC_GetString("$no") : LOC_GetString("$yes");
@@ -11642,8 +11659,13 @@ void M_LanConfig_Draw(void)
 			M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		}
 	}
+#endif
 	if (JoiningGame || !lanConfig_steam_server)
 	{
+#ifdef NO_PUBLIC
+		if (StartingGame)
+		{
+#endif
 		y += 8;
 		M_Print(basex, y, LOC_GetString("$menu_address_colon"));
 
@@ -11705,6 +11727,9 @@ void M_LanConfig_Draw(void)
 			M_DrawCharacter(basex - 10, y, 12 + ((int)(realtime * 4) & 1));
 		}
 		y += 8;
+#ifdef NO_PUBLIC
+		}
+#endif
 
 		if (StartingGame)
 		{
@@ -11738,6 +11763,7 @@ void M_LanConfig_Draw(void)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 			y += 8;
 
+#ifndef NO_PUBLIC
 			M_Print(basex, y, LOC_GetString("$menu_history"));
 			if (lanConfig_cursor == 4)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
@@ -11746,7 +11772,6 @@ void M_LanConfig_Draw(void)
 			if (lanConfig_cursor == 5)
 				M_DrawCharacter(basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 			y += 8;
-#ifndef NO_PUBLIC
 			M_Print(basex, y, LOC_GetString("$menu_join_game_at_colon"));
 			y += 17;
 			M_DrawTextBox(basex + 8, y - 8, 22, 1);
@@ -11800,7 +11825,11 @@ void M_LanConfig_Draw(void)
 
 	}
 	else {
+#ifdef NO_PUBLIC
+		y += 8;
+#else
 		y += 16;
+#endif
 		M_DrawTextBox(basex, y - 8, 2, 1);
 		M_Print(basex + 8, y, LOC_GetString("$menu_ok"));
 		if (lanConfig_cursor == 1)
@@ -11815,7 +11844,11 @@ void M_LanConfig_Key(int key)
 {
 	int		l;
 
-	if (key == K_MOUSE1)
+	if (key == K_MOUSE1
+#ifdef NO_PUBLIC
+		&& StartingGame
+#endif
+		)
 	{
 		for (int i = 0; i < 2; i++)
 		{
@@ -11875,18 +11908,16 @@ void M_LanConfig_Key(int key)
 			if (lanConfig_cursor < 0) {
 				lanConfig_cursor = NUM_LANCONFIG_CMDS_NEWGAME - 1;
 			}
+#ifdef NO_PUBLIC
+			lanConfig_cursor = 1;
+#endif
 		}
 		else {
 			if (lanConfig_cursor < 0) {
 				lanConfig_cursor = NUM_LANCONFIG_CMDS_JOINGAME - 1;
 			}
 #ifdef NO_PUBLIC
-			if (lanConfig_cursor == 1 || lanConfig_cursor == 2) {
-				lanConfig_cursor = 0;
-			}
-			if (lanConfig_cursor == 6) {
-				lanConfig_cursor = 5;
-			}
+			lanConfig_cursor = 3;
 #endif
 		}
 		break;
@@ -11899,29 +11930,29 @@ void M_LanConfig_Key(int key)
 			if (lanConfig_cursor >= NUM_LANCONFIG_CMDS_NEWGAME) {
 				lanConfig_cursor = 0;
 			}
+#ifdef NO_PUBLIC
+			lanConfig_cursor = 1;
+#endif
 		}
 		else {
 			if (lanConfig_cursor >= NUM_LANCONFIG_CMDS_JOINGAME) {
 				lanConfig_cursor = 0;
 			}
 #ifdef NO_PUBLIC
-			if (lanConfig_cursor == 1 || lanConfig_cursor == 2) {
-				lanConfig_cursor = 3;
-			}
-			if (lanConfig_cursor == 6) {
-				lanConfig_cursor = 0;
-			}
+			lanConfig_cursor = 3;
 #endif
 		}
 		break;
 
 	case K_MWHEELUP:
 	case K_LEFTARROW:
+#ifndef NO_PUBLIC
 		if (StartingGame && lanConfig_cursor == 0)
 		{
 			S_LocalSound("misc/menu1.wav");
 			lanConfig_steam_server = !lanConfig_steam_server;
 		}
+#endif
 		if (StartingGame && lanConfig_cursor == 2)
 		{
 			S_LocalSound("misc/menu1.wav");
@@ -11935,11 +11966,13 @@ void M_LanConfig_Key(int key)
 
 	case K_MWHEELDOWN:
 	case K_RIGHTARROW:
+#ifndef NO_PUBLIC
 		if (StartingGame && lanConfig_cursor == 0)
 		{
 			S_LocalSound("misc/menu1.wav");
 			lanConfig_steam_server = !lanConfig_steam_server;
 		}
+#endif
 		if (StartingGame && lanConfig_cursor == 2)
 		{
 			S_LocalSound("misc/menu1.wav");
@@ -11961,11 +11994,13 @@ void M_LanConfig_Key(int key)
 
 		if (StartingGame)
 		{
+#ifndef NO_PUBLIC
 			if (lanConfig_cursor == 0) {
 
 				S_LocalSound("misc/menu1.wav");
 				lanConfig_steam_server = !lanConfig_steam_server;
 			}
+#endif
 
 			if (lanConfig_steam_server == 0) {
 				if (lanConfig_cursor == 2)
@@ -12003,11 +12038,11 @@ void M_LanConfig_Key(int key)
 				Cbuf_AddText("steamserver 1"); //avião
 				M_Menu_Search_f(SLIST_INTERNET);
 			}
+#ifndef NO_PUBLIC
 			else if (lanConfig_cursor == 4) // woods #historymenu
 				M_Menu_History_f();
 			else if (lanConfig_cursor == 5) // woods #bookmarksmenu
 				M_Menu_Bookmarks_f();
-#ifndef NO_PUBLIC
 			else if (lanConfig_cursor == 6)
 			{
 				m_return_state = m_state;
